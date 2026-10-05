@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Commits (2026-10-04): charcoal, white type, one red playhead; the commit types keep their own colours. */
+@theme {
+  --color-bg: #0E0F11;
+  --color-sweep: #17191D;
+  --color-fg: #ECEDEE;
+  --color-fg-2: #A3A7AE; /* 8.1:1 on the charcoal */
+  --color-muted: #868A92; /* 5.5:1 */
+  --color-line: #26292E;
+  --color-surface: #15171A;
+  --color-accent: #FF4F3A; /* 5.6:1, fine for small text */
+  --color-feat: #ECEDEE;
+  --color-fix: #F2B544;
+  --color-test: #7EE0A1;
+  --color-refactor: #A5B4FC;
+  --color-docs: #6E7681;
+  --color-merge: #3F434B;
+  --color-dewex-red: #E5382B;
+  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root { color-scheme: dark; }
+html { scroll-padding-top: 5rem; }
+html, body { background: var(--color-bg); color: var(--color-fg); }
+body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+/* Component classes live in a layer so Tailwind utilities can still override them */
+@layer components {
+  /* Display: heavy, tight */
+  .display { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.05em; line-height: 0.92; }
+  /* Small labels: monospace, sentence case, never spaced capitals */
+  .kicker { font-family: var(--font-mono); font-weight: 500; font-size: 12.5px; letter-spacing: 0; }
+  /* The charcoal backdrop, a little lighter at the floor */
+  .sweep { background: radial-gradient(120% 80% at 50% 105%, var(--color-sweep) 0%, var(--color-bg) 62%); }
+  /* The red light of the playhead */
+  .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); box-shadow: 0 0 10px var(--color-accent); }
+  /* Play: the primary action, a red triangle and monospace text */
+  .play { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 500; color: var(--color-fg); }
+  .play::before { content: ''; flex: none; border-left: 10px solid var(--color-accent); border-top: 6px solid transparent; border-bottom: 6px solid transparent; transition: transform .2s cubic-bezier(.2,.7,.2,1); }
+  .play:hover::before { transform: translateX(2px); }
+  /* Outlined pill and its light variant (strong action) */
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--color-line); background: rgb(21 23 26 / .85); color: var(--color-fg); }
+  .pill-ink { display: inline-flex; align-items: center; gap: 10px; padding: 12px 22px; border-radius: 999px; background: var(--color-fg); color: var(--color-bg); font-weight: 600; transition: transform .2s cubic-bezier(.2,.7,.2,1); }
+  .pill-ink:hover { transform: translateY(-1px); }
+  a.pill, button.pill { transition: border-color .2s, transform .2s cubic-bezier(.2,.7,.2,1); }
+  a.pill:hover, button.pill:hover { border-color: var(--color-muted); transform: translateY(-1px); }
+  /* The label card over the world: smoked glass */
+  .label-card { border-radius: 16px; border: 1px solid var(--color-line); background: rgb(21 23 26 / .9); backdrop-filter: blur(14px); box-shadow: 0 18px 50px rgb(0 0 0 / .45); }
+}
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* The card's content fades in each time it changes */
+@keyframes swap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@layer components {
+  .swap { animation: swap .45s cubic-bezier(.2,.7,.2,1) both; }
+}

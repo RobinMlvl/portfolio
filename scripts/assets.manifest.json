@@ -1,0 +1,17 @@
+{
+  "logos": [
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/DewexLogoWhite.svg", "to": "public/logos/dewex.svg", "op": "copy" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Client/Swiss Local Adventures/dev/swisslocalaventures/public/logo.png", "to": "public/logos/swiss-local-adventures.png", "op": "png", "width": 500 },
+    { "from": "/Users/robinmalaval/Documents/Business/DrinkxLab/Design/logo/Export/Logo-Horizontal.png", "to": "public/logos/drinxlab.png", "op": "png", "width": 1600 },
+    { "from": "/Users/robinmalaval/Documents/Business/Riview.me/Design/Logo/Prod/FormatLong.svg", "to": "public/logos/riview.png", "op": "png", "width": 1600 }
+  ],
+  "screens": [
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/product/home-page.png", "to": "public/screens/dewex/home-page.webp" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/product/calendar-grid.jpg", "to": "public/screens/dewex/calendar-grid.webp" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/product/bookings-list.jpg", "to": "public/screens/dewex/bookings-list.webp" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/product/studio-editor.jpg", "to": "public/screens/dewex/studio-editor.webp" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/product/activity-page.jpg", "to": "public/screens/dewex/activity-page.webp" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/product/booking-modal.jpg", "to": "public/screens/dewex/booking-modal.webp" },
+    { "from": "/Users/robinmalaval/Documents/Business/Dewex/Dewex-Software/dewex/public/hero/panels/phone-booking-v2.jpg", "to": "public/screens/dewex/phone-booking.webp" }
+  ]
+}
