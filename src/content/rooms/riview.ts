@@ -6,6 +6,7 @@ const history = repoOf('riview');
 
 // Sources: facts-riview.md (extracted 2026-09-17 from the riviews repo), the repo's package.json.
 // Back among the products on 2026-10-06, in the place of Drinxlab (which moved to the side projects).
+// One film shows the product (Robin's cut, 2026-10-06: the web picture with the full cut's sound); the other stops keep their text for the plain page.
 export const riview: Room = {
   slug: 'riview',
   index: 4,
@@ -32,11 +33,12 @@ export const riview: Room = {
         'Freemium, Starter, Pro, monthly or annual, with a card only when needed. Landing, pricing and the Stripe checkout all live in the same Next.js app.',
       screens: [
         {
-          kind: 'image',
-          key: 'home',
-          src: '/screens/riview/home.webp',
-          alt: 'riview.me home page: "Reward your customers, grow your visibility", a restaurant\'s QR code poster and three review cards',
-          caption: 'riview.me: the landing, a QR code that turns into reviews',
+          kind: 'video',
+          key: 'overview',
+          src: '/screens/riview/overview.mp4',
+          poster: '/screens/riview/overview-poster.webp',
+          alt: 'Product film, 57 seconds: a guest scans the QR code on a café table, rates the visit and spins the reward wheel; the venue follows scans, reviews and rewards for every location in its dashboard and designs its table poster',
+          caption: 'riview.me in 57 seconds: scan, rate, spin, and the dashboard behind it',
           width: 1600,
           height: 900,
         },
