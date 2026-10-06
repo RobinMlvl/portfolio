@@ -5,12 +5,13 @@
  * recent days have a column each; the older ones are gathered in a first column behind an axis
  * break. The pointer picks a day and a commit; the log above prints it. With no pointer the
  * history plays by itself; a click replays it fast from the commit under the pointer, a second
- * click stops. The legend keeps one product only. Data: public/commits/all.json, written by
- * tools/commits.mjs.
+ * click stops. The legend keeps one product only. Data: public/commits/all.json (useHistory),
+ * written by tools/commits.mjs.
  */
 import { useEffect, useRef, useState } from 'react';
 import { repos } from '@/content/commits';
-import { REPO_COLOR, columnLabel, columnOf, dayLabel, logWindow, monthStarts, onlyRepo, pick, splitSubject, timelineOf, type History } from '@/lib/commits';
+import { REPO_COLOR, columnLabel, columnOf, dayLabel, logWindow, monthStarts, onlyRepo, pick, splitSubject, timelineOf } from '@/lib/commits';
+import { useHistory } from '@/lib/history';
 
 /** commits per second while nobody points at the history, and after a click */
 const IDLE_RATE = 24;
@@ -27,27 +28,12 @@ const DAY = 86_400_000;
 const span = Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / DAY);
 
 export function CommitHistory() {
-  const [history, setHistory] = useState<History | null>(null);
-  const [failed, setFailed] = useState(false);
+  const loaded = useHistory();
+  const history = loaded === 'failed' ? null : loaded;
+  const failed = loaded === 'failed';
   const [solo, setSolo] = useState<number | null>(null);
   const [view, setView] = useState<View | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await fetch('/commits/all.json');
-        if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as History;
-        if (alive) setHistory(data);
-      } catch {
-        if (alive) setFailed(true);
-      }
-    };
-    load();
-    return () => { alive = false; };
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

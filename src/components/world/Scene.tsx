@@ -11,14 +11,18 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { PublicRoom, Screen } from '@/content/schema';
+import { REPO_COLOR, dayLabel, type History } from '@/lib/commits';
+import { useHistory } from '@/lib/history';
 import type { WorldHandle } from '@/lib/world/useWorld';
 import type { FrameBus } from '@/lib/world/frameBus';
-import { flightProgress, ringAngle } from '@/lib/world/state';
-import { CAMERA_HOME, CAROUSEL, STACK_GAP, frontWeight, homeCamera, panelPlacement, panelYaw, riseOf, zoomCamera } from '@/lib/world/layout';
-import { panelSize, stackOf } from '@/lib/world/screens';
+import { activeRoom, flightProgress, ringAngle } from '@/lib/world/state';
+import { CAMERA_HOME, CAROUSEL, FLOOR, FRONT_SPOT, PANEL, STACK_GAP, frontWeight, homeFraming, panelPlacement, panelYaw, riseOf, zoomCamera } from '@/lib/world/layout';
+import { panelSize, stackOf, zoomFrameOf } from '@/lib/world/screens';
 
 /** far covers fade into the backdrop */
 const FOG = '#0E0F11';
+/** where the fog begins and ends, past the front product (scene units) */
+const FOG_RANGE = [5, 25] as const;
 const BEZEL = '#2A2D33';
 const PLACEHOLDER = '#1A1C20';
 /** how far the bezel shows around a screen, in scene units */
@@ -43,42 +47,59 @@ function Ticker({ world, bus }: { world: WorldHandle; bus: FrameBus }) {
 }
 
 /* ---------- camera ---------- */
-function CameraRig({ world }: { world: WorldHandle }) {
+function CameraRig({ world, rooms }: { world: WorldHandle; rooms: PublicRoom[] }) {
   const pointer = useThree((s) => s.pointer);
+  // inside a product the camera frames its tallest screen; a film takes the card's room too
+  const frames = useMemo(() => rooms.map(zoomFrameOf), [rooms]);
+  // at home it frames the tallest cover of all, so it does not breathe from product to product
+  const coverHeight = useMemo(() => Math.max(...rooms.map((r) => panelSize(stackOf(r)[0].screen).height)), [rooms]);
   const look = useRef(new THREE.Vector3(...CAMERA_HOME.look));
-  const tmp = useRef({ p: new THREE.Vector3(), l: new THREE.Vector3(), zp: new THREE.Vector3(), zl: new THREE.Vector3(), home: new THREE.Vector3(...CAMERA_HOME.position), homeLook: new THREE.Vector3(...CAMERA_HOME.look) });
+  const tmp = useRef({ p: new THREE.Vector3(), l: new THREE.Vector3(), zp: new THREE.Vector3(), zl: new THREE.Vector3(), home: new THREE.Vector3(...CAMERA_HOME.position), homeLook: new THREE.Vector3(...CAMERA_HOME.look), front: new THREE.Vector3(FRONT_SPOT[0], CAROUSEL.height, FRONT_SPOT[2]), offset: { x: 0, y: 0 } });
 
-  useFrame(({ camera, size }) => {
+  useFrame(({ camera, size, scene }) => {
     const s = world.ref.current;
-    const { p, l, zp, zl, home, homeLook } = tmp.current;
-    const aspect = size.width / Math.max(1, size.height);
-    const zoom = zoomCamera(size.width, size.height);
+    const { p, l, zp, zl, home, homeLook, front, offset } = tmp.current;
+    const zoom = zoomCamera(size.width, size.height, frames[s.roomIdx]);
     zp.set(...zoom.position); zl.set(...zoom.look);
-    const h = homeCamera(aspect);
+    const h = homeFraming(size.width, size.height, coverHeight);
     home.set(...h.position); homeLook.set(...h.look);
+    // the view shift that puts the front product in its band, none once a product is open
+    let [ox, oy] = h.offset;
     switch (s.phase) {
       case 'room':
         p.copy(zp); l.copy(zl);
         p.x += pointer.x * 0.04; p.y += pointer.y * 0.03;
+        ox = 0; oy = 0;
         break;
       case 'entering': {
         const e = flightProgress(s);
         p.lerpVectors(home, zp, e); l.lerpVectors(homeLook, zl, e);
+        ox *= 1 - e; oy *= 1 - e;
         break;
       }
       case 'leaving': {
         const e = flightProgress(s);
         p.lerpVectors(zp, home, e); l.lerpVectors(zl, homeLook, e);
+        ox *= e; oy *= e;
         break;
       }
       default:
-        p.copy(home); p.x += pointer.x * 0.5; p.y += pointer.y * 0.25;
+        p.copy(home); p.x += pointer.x * 0.35; p.y += pointer.y * 0.2;
         l.copy(homeLook);
     }
     const k = s.phase === 'entering' || s.phase === 'leaving' ? 1 : 0.1;
     camera.position.lerp(p, k);
     look.current.lerp(l, k);
     camera.lookAt(look.current);
+    offset.x += (ox - offset.x) * k; offset.y += (oy - offset.y) * k;
+    const cam = camera as THREE.PerspectiveCamera;
+    cam.setViewOffset(size.width, size.height, -offset.x, -offset.y, size.width, size.height);
+    cam.updateProjectionMatrix();
+    // the fog starts just behind the front product, however far the camera stands (phones stand far back)
+    if (scene.fog instanceof THREE.Fog) {
+      const d = camera.position.distanceTo(front);
+      scene.fog.near = d + FOG_RANGE[0]; scene.fog.far = d + FOG_RANGE[1];
+    }
   });
   return null;
 }
@@ -104,35 +125,80 @@ function othersPresence(s: WorldHandle['ref']['current']): number {
   }
 }
 
-/* ---------- a soft shadow on the floor under each cover ---------- */
-const SHADOW_VERTEX = `
-varying vec2 vUv;
-void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-`;
-const SHADOW_FRAGMENT = `
-uniform float uOpacity;
-varying vec2 vUv;
-void main() {
-  float d = length((vUv - 0.5) * 2.0);
-  float a = 1.0 - smoothstep(0.0, 1.0, d);
-  gl_FragColor = vec4(0.0, 0.0, 0.0, a * a * uOpacity);
+/* ---------- the commit history under each cover ---------- */
+/** One product's commits as a waveform: a column per day, a line per commit, its dates and total under it. */
+function drawFloor(history: History, repo: number): THREE.CanvasTexture | null {
+  const own = history.commits.filter((c) => c[4] === repo);
+  if (!own.length) return null;
+  const first = own[0][0], last = own[own.length - 1][0];
+  const counts = new Array<number>(last - first + 1).fill(0);
+  for (const c of own) counts[c[0] - first]++;
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048; canvas.height = Math.round((2048 * FLOOR.height) / PANEL.width);
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const W = canvas.width, H = canvas.height, label = 46, band = H - label - 8;
+    const colW = W / counts.length, bw = Math.max(2, colW * 0.66), lineH = band / Math.max(...counts);
+    ctx.fillStyle = REPO_COLOR[repo] ?? '#ECEDEE';
+    counts.forEach((n, i) => {
+      const x = i * colW + (colW - bw) / 2;
+      if (!n) { ctx.globalAlpha = 0.22; ctx.fillRect(x, 4 + band / 2 - 1, bw, 2); ctx.globalAlpha = 1; return; }
+      const y = 4 + band / 2 - (n * lineH) / 2;
+      for (let k = 0; k < n; k++) ctx.fillRect(x, y + k * lineH, bw, Math.max(1, lineH * 0.72));
+    });
+    const mono = getComputedStyle(document.documentElement).getPropertyValue('--font-geist-mono').trim() || 'monospace';
+    ctx.fillStyle = 'rgba(236,237,238,.2)'; ctx.fillRect(0, H - label + 2, W, 2);
+    ctx.font = `500 26px ${mono}`; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(236,237,238,.6)';
+    ctx.textAlign = 'left'; ctx.fillText(dayLabel(history.first, first).toUpperCase(), 0, H - label + 14);
+    ctx.textAlign = 'right'; ctx.fillText(dayLabel(history.first, last).toUpperCase(), W, H - label + 14);
+    ctx.fillStyle = 'rgba(236,237,238,.92)';
+    ctx.textAlign = 'center'; ctx.fillText(`${own.length.toLocaleString('en-US')} COMMITS`, W / 2, H - label + 14);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
-`;
 
-function FloorShadow({ world, roomIndex, width }: { world: WorldHandle; roomIndex: number; width: number }) {
-  const material = useRef<THREE.ShaderMaterial>(null);
-  const uniforms = useMemo(() => ({ uOpacity: { value: 0 } }), []);
+/** The floor texture, redrawn once the web font is ready so the labels never keep a fallback face. */
+function useFloorTexture(history: History | null, repo: number): THREE.CanvasTexture | null {
+  const gl = useThree((s) => s.gl);
+  const [texture, setTexture] = useState<THREE.CanvasTexture | null>(null);
+  useEffect(() => {
+    if (!history || repo < 0) return;
+    let alive = true;
+    let made: THREE.CanvasTexture | null = null;
+    const draw = () => {
+      if (!alive) return;
+      made?.dispose();
+      made = drawFloor(history, repo);
+      if (made) made.anisotropy = gl.capabilities.getMaxAnisotropy();
+      setTexture(made);
+    };
+    draw();
+    document.fonts?.ready.then(draw);
+    return () => { alive = false; made?.dispose(); };
+  }, [history, repo, gl]);
+  return texture;
+}
+
+/**
+ * The product's commit history, standing under its cover and leaning with it. It fades with
+ * the cover in the carousel and steps aside once a product is open.
+ */
+function CommitFloor({ world, roomIndex, coverHeight, history, repo }: { world: WorldHandle; roomIndex: number; coverHeight: number; history: History | null; repo: number }) {
+  const texture = useFloorTexture(history, repo);
+  const material = useRef<THREE.MeshBasicMaterial>(null);
   useFrame(() => {
     const s = world.ref.current;
-    const inRoom = (s.phase === 'room' || s.phase === 'entering' || s.phase === 'leaving') && s.roomIdx === roomIndex;
-    // every shadow fades while a product is open: the zoomed screen floats, and its shadow would sit under the slider
-    const w = inRoom ? 1 : frontWeight(s.vy, roomIndex, world.config.rooms.length);
-    if (material.current) material.current.uniforms.uOpacity.value = 0.34 * (0.45 + 0.55 * w) * othersPresence(s);
+    const w = frontWeight(s.vy, roomIndex, world.config.rooms.length);
+    if (material.current) material.current.opacity = (SIDE_OPACITY + (1 - SIDE_OPACITY) * w) * othersPresence(s);
   });
+  if (!texture) return null;
   return (
-    <mesh position={[0, -CAROUSEL.height + 0.02, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[width * 1.15, 2.6]} />
-      <shaderMaterial ref={material} vertexShader={SHADOW_VERTEX} fragmentShader={SHADOW_FRAGMENT} uniforms={uniforms} transparent depthWrite={false} />
+    <mesh position={[0, -coverHeight / 2 - FLOOR.gap - FLOOR.height / 2, 0]} raycast={() => null}>
+      <planeGeometry args={[PANEL.width, FLOOR.height]} />
+      <meshBasicMaterial key={texture.uuid} ref={material} map={texture} transparent opacity={0} depthWrite={false} toneMapped={false} />
     </mesh>
   );
 }
@@ -174,29 +240,121 @@ function Bezel({ w, h, matRef }: { w: number; h: number; matRef: React.MutableRe
   );
 }
 
-/** Writes one frame of `screenLook` onto the objects of a screen. */
-function applyScreenLook(look: ReturnType<typeof screenLook>, height: number, group: THREE.Group | null, fill: THREE.Material | null, bezel: THREE.Material | null) {
-  if (group) { group.visible = look.visible; group.position.y = look.y * height; }
-  if (fill) fill.opacity = look.opacity;
-  if (bezel) bezel.opacity = look.opacity;
-}
+type Look = ReturnType<typeof screenLook>;
 
-function ImageScreen({ world, roomIndex, index, screen, onClick }: ScreenPanelProps & { screen: Extract<Screen, { kind: 'image' }> }) {
-  const gl = useThree((s) => s.gl);
-  const texture = useTexture(screen.src, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = gl.capabilities.getMaxAnisotropy(); tex.minFilter = THREE.LinearMipmapLinearFilter; tex.needsUpdate = true; });
-  const { width, height } = panelSize(screen);
-  const mat = useRef<THREE.MeshBasicMaterial>(null);
+/**
+ * One screen of a product's stack: a plane and its bezel, lifted and faded by `screenLook`
+ * every frame. `map` is the image, the film or the label; null shows a plain graphite slab.
+ */
+function Panel({ world, roomIndex, index, width, height, map, onClick, onLook, children }: Omit<ScreenPanelProps, 'screen'> & { width: number; height: number; map: THREE.Texture | null; onLook?(look: Look): void; /** drawn on the screen, e.g. a play button */ children?: React.ReactNode }) {
+  const fill = useRef<THREE.MeshBasicMaterial>(null);
   const bezel = useRef<THREE.MeshBasicMaterial>(null);
   const group = useRef<THREE.Group>(null);
-  useFrame(() => applyScreenLook(screenLook(world, roomIndex, index), height, group.current, mat.current, bezel.current));
+  useFrame(() => {
+    const look = screenLook(world, roomIndex, index);
+    if (group.current) { group.current.visible = look.visible; group.current.position.y = look.y * height; }
+    if (fill.current) fill.current.opacity = look.opacity;
+    if (bezel.current) bezel.current.opacity = look.opacity;
+    onLook?.(look);
+  });
   return (
     <group ref={group} position={[0, 0, -index * STACK_GAP]} visible={false}>
       <mesh onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined} onPointerOver={onClick ? () => { document.body.style.cursor = 'pointer'; } : undefined} onPointerOut={onClick ? () => { document.body.style.cursor = ''; } : undefined}>
         <planeGeometry args={[width, height]} />
-        <meshBasicMaterial ref={mat} map={texture} transparent opacity={0} toneMapped={false} />
+        {/* a new material when the map changes: three.js compiles the map into the shader only at creation */}
+        <meshBasicMaterial key={map ? map.uuid : 'plain'} ref={fill} map={map} color={map ? '#ffffff' : PLACEHOLDER} transparent opacity={0} toneMapped={false} />
       </mesh>
       <Bezel w={width} h={height} matRef={bezel} />
+      {children}
     </group>
+  );
+}
+
+/** A still, sharp at an angle. */
+function useStill(src: string): THREE.Texture {
+  const gl = useThree((s) => s.gl);
+  return useTexture(src, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = gl.capabilities.getMaxAnisotropy(); tex.minFilter = THREE.LinearMipmapLinearFilter; tex.needsUpdate = true; });
+}
+
+function ImageScreen({ screen, ...panel }: ScreenPanelProps & { screen: Extract<Screen, { kind: 'image' }> }) {
+  const texture = useStill(screen.src);
+  return <Panel {...panel} {...panelSize(screen)} map={texture} />;
+}
+
+/**
+ * A product film. In the carousel it shows its poster and stays still; a click on the cover
+ * (or entering the product) plays it with sound, the play starting inside the click so the
+ * browser lets the sound through. Inside, a click pauses or resumes it; leaving stops it and
+ * brings the poster back.
+ */
+/** The play button drawn on a film: a red disc and a white triangle, like the site's play mark. */
+function drawPlay(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.arc(128, 134, 110, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FF4F3A'; ctx.beginPath(); ctx.arc(128, 128, 104, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.moveTo(104, 84); ctx.lineTo(104, 172); ctx.lineTo(178, 128); ctx.closePath(); ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** diameter of the play button, in scene units (the cover is 9 wide) */
+const PLAY_SIZE = 1.15;
+
+function VideoScreen({ screen, world, roomIndex, index, onClick }: ScreenPanelProps & { screen: Extract<Screen, { kind: 'video' }> }) {
+  const poster = useStill(screen.poster);
+  const playIcon = useMemo(() => drawPlay(), []);
+  useEffect(() => () => playIcon.dispose(), [playIcon]);
+  const badge = useRef<THREE.MeshBasicMaterial>(null);
+  /** 1 while the film is still, 0 while it plays; eased so the button fades */
+  const badgeOn = useRef(1);
+  const video = useRef<HTMLVideoElement | null>(null);
+  const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const [shown, setShown] = useState(false);
+  /** the film has been started during this visit of the product */
+  const started = useRef(false);
+  useEffect(() => {
+    const v = Object.assign(document.createElement('video'), { src: screen.src, playsInline: true, preload: 'metadata', crossOrigin: 'anonymous' });
+    const t = new THREE.VideoTexture(v);
+    t.colorSpace = THREE.SRGBColorSpace;
+    const onPlaying = () => setShown(true);
+    v.addEventListener('playing', onPlaying);
+    video.current = v;
+    const init = () => setTexture(t);
+    init();
+    return () => { v.removeEventListener('playing', onPlaying); v.pause(); v.removeAttribute('src'); v.load(); t.dispose(); video.current = null; };
+  }, [screen.src]);
+
+  const inside = () => { const s = world.ref.current; return (s.phase === 'room' || s.phase === 'entering') && s.roomIdx === roomIndex; };
+  const play = (v: HTMLVideoElement) => { started.current = true; v.muted = false; v.play().catch(() => { /* refused outside a gesture: a click on the screen starts it */ }); };
+  const onLook = (look: Look) => {
+    const v = video.current;
+    if (v) {
+      if (inside()) { if (!started.current) play(v); }
+      else if (started.current) { started.current = false; v.pause(); v.currentTime = 0; setShown(false); }
+    }
+    // the play button shows whenever the film is not playing
+    badgeOn.current += ((v && !v.paused ? 0 : 1) - badgeOn.current) * 0.2;
+    if (badge.current) badge.current.opacity = look.opacity * badgeOn.current;
+  };
+  const click = () => {
+    const v = video.current, s = world.ref.current;
+    if (v && s.phase === 'room' && s.roomIdx === roomIndex) { if (v.paused) play(v); else v.pause(); return; }
+    if (v && s.phase === 'carousel' && activeRoom(s, world.config) === roomIndex) play(v);
+    onClick?.();
+  };
+  return (
+    <Panel world={world} roomIndex={roomIndex} index={index} {...panelSize(screen)} map={shown && texture ? texture : poster} onLook={onLook} onClick={click}>
+      {/* low on the right, clear of the film's titles; the click goes through to the screen behind */}
+      <mesh position={[panelSize(screen).width * 0.3, -panelSize(screen).height * 0.2, 0.03]} raycast={() => null}>
+        <planeGeometry args={[PLAY_SIZE, PLAY_SIZE]} />
+        <meshBasicMaterial ref={badge} map={playIcon} transparent opacity={0} depthWrite={false} toneMapped={false} />
+      </mesh>
+    </Panel>
   );
 }
 
@@ -240,53 +398,44 @@ function useLabelTexture(title: string, subtitle: string): THREE.CanvasTexture |
   return texture;
 }
 
-function PlaceholderScreen({ world, roomIndex, index, screen, title, subtitle, onClick }: ScreenPanelProps & { title: string; subtitle: string }) {
-  const { width, height } = panelSize(screen);
+function PlaceholderScreen({ screen, title, subtitle, ...panel }: ScreenPanelProps & { title: string; subtitle: string }) {
   const label = useLabelTexture(title, subtitle);
-  const fill = useRef<THREE.MeshBasicMaterial>(null);
-  const bezel = useRef<THREE.MeshBasicMaterial>(null);
-  const group = useRef<THREE.Group>(null);
-  useFrame(() => applyScreenLook(screenLook(world, roomIndex, index), height, group.current, fill.current, bezel.current));
-  return (
-    <group ref={group} position={[0, 0, -index * STACK_GAP]} visible={false}>
-      <mesh onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined} onPointerOver={onClick ? () => { document.body.style.cursor = 'pointer'; } : undefined} onPointerOut={onClick ? () => { document.body.style.cursor = ''; } : undefined}>
-        <planeGeometry args={[width, height]} />
-        {/* a new material once the label exists: three.js compiles the map into the shader only at creation */}
-        <meshBasicMaterial key={label ? label.uuid : 'plain'} ref={fill} map={label} color={label ? '#ffffff' : PLACEHOLDER} transparent opacity={0} toneMapped={false} />
-      </mesh>
-      <Bezel w={width} h={height} matRef={bezel} />
-    </group>
-  );
+  return <Panel {...panel} {...panelSize(screen)} map={label} />;
 }
 
 /* ---------- a product: its cover and the stack behind it ---------- */
-function ProductStack({ world, room, index, count, onRoomClick }: { world: WorldHandle; room: PublicRoom; index: number; count: number; onRoomClick(i: number): void }) {
+function ProductStack({ world, room, index, count, history, onRoomClick }: { world: WorldHandle; room: PublicRoom; index: number; count: number; history: History | null; onRoomClick(i: number): void }) {
   const { position } = panelPlacement(index, count);
   const stack = useMemo(() => stackOf(room), [room]);
-  const coverWidth = panelSize(stack[0].screen).width;
+  const coverHeight = panelSize(stack[0].screen).height;
+  const repo = history ? history.repos.findIndex((r) => r.slug === room.slug) : -1;
   const group = useRef<THREE.Group>(null);
   // the panel leans toward its current place on the circle: exactly facing the camera when in front
   useFrame(() => { if (group.current) group.current.rotation.y = panelYaw(index, count, ringAngle(world.ref.current, world.config)); });
   const onCoverClick = () => { if (world.ref.current.phase === 'carousel') onRoomClick(index); };
   return (
     <group ref={group} position={position}>
-      <FloorShadow world={world} roomIndex={index} width={coverWidth} />
+      <CommitFloor world={world} roomIndex={index} coverHeight={coverHeight} history={history} repo={repo} />
       {stack.map(({ screen, index: j }) => screen.kind === 'image'
         ? <Suspense key={screen.key} fallback={null}><ImageScreen world={world} roomIndex={index} index={j} screen={screen} onClick={j === 0 ? onCoverClick : undefined} /></Suspense>
+        : screen.kind === 'video'
+        ? <Suspense key={screen.key} fallback={null}><VideoScreen world={world} roomIndex={index} index={j} screen={screen} onClick={j === 0 ? onCoverClick : undefined} /></Suspense>
         : <PlaceholderScreen key={screen.key} world={world} roomIndex={index} index={j} screen={screen} title={j === 0 ? room.name : screen.label} subtitle={j === 0 ? room.kicker : room.name} onClick={j === 0 ? onCoverClick : undefined} />)}
     </group>
   );
 }
 
 export function Scene({ world, rooms, bus, onRoomClick }: SceneProps) {
+  const loaded = useHistory();
+  const history = loaded === 'failed' ? null : loaded;
   return (
     <>
       <fog attach="fog" args={[FOG, 16, 36]} />
       <Ticker world={world} bus={bus} />
-      <CameraRig world={world} />
+      <CameraRig world={world} rooms={rooms} />
       <Carousel world={world}>
         {rooms.map((room, i) => (
-          <ProductStack key={room.slug} world={world} room={room} index={i} count={rooms.length} onRoomClick={onRoomClick} />
+          <ProductStack key={room.slug} world={world} room={room} index={i} count={rooms.length} history={history} onRoomClick={onRoomClick} />
         ))}
       </Carousel>
     </>

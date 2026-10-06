@@ -2,12 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   CAMERA_HOME,
   CAROUSEL,
+  CAROUSEL_PAGE,
+  FLOOR,
   FRONT_SPOT,
   PANEL,
   RISE_TRAVEL,
   dot,
+  carouselBand,
   frontWeight,
-  homeCamera,
+  homeFraming,
+  isWide,
   normalize,
   panelPlacement,
   panelYaw,
@@ -17,7 +21,6 @@ import {
   sub,
   ZOOM_RESERVE,
   zoomCamera,
-  zoomDistance,
   wrapAngle,
   type Vec3,
 } from '@/lib/world/layout';
@@ -32,7 +35,6 @@ describe('carousel', () => {
     expect(FRONT_SPOT).toEqual([0, 0, CAROUSEL.centre[2] + CAROUSEL.radius]);
     expect(CAMERA_HOME.look[0]).toBe(0);
     expect(CAMERA_HOME.look[2]).toBe(FRONT_SPOT[2]);
-    expect(CAMERA_HOME.look[1]).toBeLessThan(CAROUSEL.height); // the cover sits high in the frame, above the label card
     expect(CAMERA_HOME.position[2]).toBeGreaterThan(FRONT_SPOT[2]);
   });
 
@@ -83,31 +85,63 @@ describe('carousel', () => {
   });
 });
 
-describe('home camera', () => {
-  it('is the fixed home on landscape viewports and backs off on portrait ones so the cover fits the width', () => {
-    expect(homeCamera(1.6)).toEqual(CAMERA_HOME);
-    const phone = homeCamera(0.46);
-    expect(phone.position[2]).toBeGreaterThan(CAMERA_HOME.position[2]);
-    expect(phone.look[1]).toBeLessThan(CAMERA_HOME.look[1]); // aims lower: the cover rises above the card
-    const tanHalf = Math.tan((50 * Math.PI) / 360);
-    const d = phone.position[2] - FRONT_SPOT[2];
-    expect(PANEL.width / (2 * d * tanHalf * 0.46)).toBeLessThanOrEqual(0.86 + 1e-9);
+describe('home framing', () => {
+  const tanHalf = Math.tan((50 * Math.PI) / 360);
+  const film = PANEL.width / (16 / 9);
+
+  /** where the front product lands, in px: its screen, the commit history under it, and its centre */
+  function landed(width: number, height: number) {
+    const f = homeFraming(width, height, film);
+    const d = f.position[2] - FRONT_SPOT[2];
+    const px = height / (2 * d * tanHalf); // px per scene unit
+    const centreY = height / 2 + f.offset[1] - (CAROUSEL.height - f.position[1]) * px;
+    const top = centreY - (film / 2) * px, bottom = centreY + (film / 2 + FLOOR.gap + FLOOR.height) * px;
+    return { f, px, left: width / 2 + f.offset[0] - (PANEL.width / 2) * px, right: width / 2 + f.offset[0] + (PANEL.width / 2) * px, top, bottom };
+  }
+
+  it('tells a wide viewport from a narrow one', () => {
+    expect(isWide(1440, 900)).toBe(true);
+    expect(isWide(1024, 768)).toBe(true);
+    expect(isWide(900, 700)).toBe(false);
+    expect(isWide(390, 844)).toBe(false);
+  });
+
+  it('on a wide viewport, frames the front product between the sheet and the legend', () => {
+    const band = carouselBand(1440, 900);
+    expect(band.left).toBeCloseTo(CAROUSEL_PAGE.side + 432 + CAROUSEL_PAGE.gap, 6); // 30% of 1440 for the sheet
+    expect(band.right).toBe(1440 - CAROUSEL_PAGE.side - CAROUSEL_PAGE.legend - CAROUSEL_PAGE.gap);
+    const p = landed(1440, 900);
+    expect(p.left).toBeGreaterThanOrEqual(band.left - 1e-6);
+    expect(p.right).toBeLessThanOrEqual(band.right + 1e-6);
+    expect(p.top).toBeGreaterThanOrEqual(band.top - 1e-6);
+    expect(p.bottom).toBeLessThanOrEqual(band.bottom + 1e-6);
+    expect((p.left + p.right) / 2).toBeCloseTo((band.left + band.right) / 2, 6);
+  });
+
+  it('on a short wide viewport, backs off until the screen and its history fit the height', () => {
+    const band = carouselBand(1440, 640);
+    const p = landed(1440, 640);
+    expect(p.bottom - p.top).toBeLessThanOrEqual(band.bottom - band.top + 1e-6);
+  });
+
+  it('on a phone, frames the front product across the width, above the sheet', () => {
+    const band = carouselBand(390, 844);
+    expect(band.bottom).toBe(844 - CAROUSEL_PAGE.phoneSheet - 24);
+    const p = landed(390, 844);
+    expect(p.left).toBeGreaterThanOrEqual(CAROUSEL_PAGE.phoneSide - 1e-6);
+    expect(p.right).toBeLessThanOrEqual(390 - CAROUSEL_PAGE.phoneSide + 1e-6);
+    expect(p.bottom).toBeLessThanOrEqual(band.bottom + 1e-6);
+  });
+
+  it('looks straight ahead', () => {
+    const { f } = landed(1440, 900);
+    expect(f.look[1]).toBe(f.position[1]);
+    expect(f.look[0]).toBe(f.position[0]);
   });
 });
 
 describe('zoom', () => {
   const tanHalf = Math.tan((50 * Math.PI) / 360);
-
-  it('fills 78% of the width on a landscape viewport', () => {
-    const d = zoomDistance(1.6);
-    expect((PANEL.width / (2 * d * tanHalf * 1.6))).toBeCloseTo(0.78, 6);
-  });
-
-  it('backs off on a portrait viewport so the cover still fits', () => {
-    const d = zoomDistance(0.5);
-    expect(PANEL.width / (2 * d * tanHalf * 0.5)).toBeLessThanOrEqual(0.78 + 1e-9);
-    expect(PANEL.height / (2 * d * tanHalf)).toBeLessThanOrEqual(0.78 + 1e-9);
-  });
 
   /** where the zoomed cover lands on screen, in px */
   function projected(width: number, height: number) {
@@ -136,6 +170,17 @@ describe('zoom', () => {
     const p = projected(1440, 700);
     expect(p.heightPx).toBeCloseTo(700 - ZOOM_RESERVE.top - ZOOM_RESERVE.bottom, 3);
     expect(p.centreYPx + p.heightPx / 2).toBeLessThanOrEqual(700 - ZOOM_RESERVE.bottom + 1e-6);
+  });
+
+  it('frames a film without the card: taller screen, whole free height, a thin margin at the bottom', () => {
+    const screenHeight = PANEL.width / (16 / 9);
+    const cam = zoomCamera(1440, 900, { screenHeight, film: true });
+    const d = cam.position[2] - FRONT_SPOT[2];
+    const worldPerPx = (2 * d * tanHalf) / 900;
+    const heightPx = screenHeight / worldPerPx, centreYPx = 900 / 2 - (CAROUSEL.height - cam.position[1]) / worldPerPx;
+    expect(centreYPx - heightPx / 2).toBeGreaterThanOrEqual(ZOOM_RESERVE.top - 1e-6);
+    expect(centreYPx + heightPx / 2).toBeLessThanOrEqual(900 - ZOOM_RESERVE.film.bottom + 1e-6);
+    expect(heightPx).toBeGreaterThan(projected(1440, 900).heightPx); // larger than a screen sharing the band with the card
   });
 
   it('on a phone, takes nearly the whole width and stays above the taller card', () => {

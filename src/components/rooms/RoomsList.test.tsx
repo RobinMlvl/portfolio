@@ -10,12 +10,17 @@ describe('RoomsList', () => {
     expect(articles).toHaveLength(4);
     expect(within(articles[0]).getByRole('img', { name: 'Dewex' })).toBeInTheDocument();
     expect(within(articles[1]).getByText('OS')).toBeInTheDocument();
-    expect(within(articles[3]).getByRole('img', { name: 'Drinxlab' })).toBeInTheDocument();
+    expect(within(articles[3]).getByRole('img', { name: 'riview.me' })).toBeInTheDocument();
   });
-  it('renders Dewex stops with real images and other rooms with placeholders', () => {
-    render(<RoomsList rooms={rooms} />);
-    expect(screen.getByRole('img', { name: /departures calendar/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/screen to come/i).length).toBeGreaterThan(5);
+  it('renders the Dewex film with a player that never starts by itself, the captures of the public sites, and the screen still to come', () => {
+    const { container } = render(<RoomsList rooms={rooms} />);
+    const film = container.querySelector('video');
+    expect(film).toHaveAttribute('src', '/screens/dewex/overview.mp4');
+    expect(film).toHaveAttribute('controls');
+    expect(film).not.toHaveAttribute('autoplay');
+    expect(screen.getByRole('img', { name: /Swiss Local Adventures home page/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /riview\.me home page/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/screen to come/i)).toHaveLength(1); // Dewex OS, until its film
   });
   it('reserves logo space from the real aspect ratio', () => {
     render(<RoomsList rooms={rooms} />);

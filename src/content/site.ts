@@ -33,11 +33,12 @@ export const site: Site = {
           'Guest portal in three languages for hostels with no front desk in Takayama, Japan. I built the "call staff" flow: the guest rings from a phone, reception picks up, a real-time layer on server-sent events and WebRTC carries the call. Private code, no screenshots.',
       },
       {
-        name: 'riview.me',
-        year: '2025, live',
-        url: 'https://riview.me',
+        // Sources: facts-drinxlab.md (2026-09-17), the ESP32 firmware at ~/Documents/PlatformIO/Projects/Drinxlab (src/main.cpp, 161 lines)
+        name: 'Drinxlab',
+        year: '2023 to 2024, prototype',
+        url: null,
         body:
-          'Turns a QR scan at a restaurant table into a Google review or private feedback: the customer signs in, rates the visit, and a threshold set by the venue decides where the review goes; a reward wheel closes the loop. Three Stripe plans with quotas recomputed on every scan from the billing period, never from a counter.',
+          'A cocktail machine I designed and built: a printed housing, standard bottles as reservoirs, eight pumps, an ESP32 running 161 lines of C++ over a TLS WebSocket, and an app that maps every pump to a recipe. Pitched through Station F\'s Launch programme.',
       },
       {
         name: 'Nicolas Vivaudou',

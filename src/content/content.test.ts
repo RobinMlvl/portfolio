@@ -10,9 +10,9 @@ import { site } from '@/content/site';
 import { repos } from '@/content/commits';
 
 describe('rooms', () => {
-  it('has the four rooms in the decided order, riview.me listed in Also', () => {
-    expect(rooms.map((r) => r.slug)).toEqual(['dewex', 'dewex-os', 'swiss-local-adventures', 'drinxlab']);
-    expect(site.also.items.map((i) => i.name)).toContain('riview.me');
+  it('has the four rooms in the decided order, Drinxlab listed in Also', () => {
+    expect(rooms.map((r) => r.slug)).toEqual(['dewex', 'dewex-os', 'swiss-local-adventures', 'riview']);
+    expect(site.also.items.map((i) => i.name)).toContain('Drinxlab');
     expect(rooms.map((r) => r.index)).toEqual([1, 2, 3, 4]);
   });
   it('validates against the schema', () => {
@@ -29,6 +29,12 @@ describe('rooms', () => {
           if (sc.kind === 'image') {
             expect(fs.existsSync(path.join('public', sc.src)), sc.src).toBe(true);
             const meta = await sharp(path.join('public', sc.src)).metadata();
+            expect([meta.width, meta.height]).toEqual([sc.width, sc.height]);
+          }
+          if (sc.kind === 'video') {
+            expect(fs.existsSync(path.join('public', sc.src)), sc.src).toBe(true);
+            // the poster stands in for the film until it plays: same size
+            const meta = await sharp(path.join('public', sc.poster)).metadata();
             expect([meta.width, meta.height]).toEqual([sc.width, sc.height]);
           }
         }

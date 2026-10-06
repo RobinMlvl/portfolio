@@ -1,5 +1,6 @@
 import { repoOf } from '@/content/commits';
 import type { Room } from '@/content/schema';
+import { periodOf } from '@/lib/commits';
 
 const history = repoOf('swiss-local-adventures');
 
@@ -13,6 +14,10 @@ export const swissLocalAdventures: Room = {
   logo: { src: '/logos/swiss-local-adventures-light.png', alt: 'Swiss Local Adventures', height: 96, ratio: 1.544 },
   kicker: 'Client platform, live since 2025',
   oneLiner: "Four-language booking site for a Swiss tour operator, with GetYourGuide's Supplier API implemented both ways.",
+  role: 'Solo, for a client',
+  period: periodOf(history),
+  stack: ['Next.js', 'Supabase', 'Stripe', 'GetYourGuide API'],
+  url: 'https://www.swisslocaladventures.ch',
   metrics: [
     { value: '4', label: 'locales', source: 'facts-swiss.md §3 (i18n/routing.js: en, fr, de, es)' },
     { value: '6', label: 'OTA endpoints', source: 'facts-swiss.md §5 (app/api/platforms/gyg/1/*)' },
@@ -26,8 +31,15 @@ export const swissLocalAdventures: Room = {
       body:
         'The operator used to sell only through GetYourGuide. Now the same tours sell on their own site in four languages, and still on the OTA, from one inventory.',
       screens: [
-        { kind: 'placeholder', key: 'home', label: 'Home, swisslocaladventures.ch', owner: 'me' },
-        { kind: 'placeholder', key: 'catalogue', label: 'Activities catalogue', owner: 'me' },
+        {
+          kind: 'image',
+          key: 'home',
+          src: '/screens/swiss-local-adventures/home.webp',
+          alt: 'Swiss Local Adventures home page: "Explore Switzerland beyond the postcard" over a mountain lake, a Book Now button top right',
+          caption: "swisslocaladventures.ch: the operator's own site, in four languages",
+          width: 1600,
+          height: 900,
+        },
       ],
     },
     {
@@ -36,7 +48,7 @@ export const swissLocalAdventures: Room = {
       title: 'One availability, two storefronts.',
       body:
         'Calendar, time slot, participants, checkout. Availability is computed the same way for the website and for GetYourGuide: capacity minus confirmed bookings minus unexpired holds, bucketed in maps so a month view is one query, not one per day.',
-      screens: [{ kind: 'placeholder', key: 'activity', label: 'Activity page + booking modal', owner: 'me' }],
+      screens: [],
     },
     {
       key: 'ota',
@@ -48,9 +60,7 @@ export const swissLocalAdventures: Room = {
         { value: '60 min', label: 'reservation hold', source: 'facts-swiss.md §5 (reserve route, expiresAt)' },
         { value: '90 days', label: 'availability pushed ahead', source: 'facts-swiss.md §5 (notify-availability-update)' },
       ],
-      screens: [
-        { kind: 'placeholder', key: 'platforms', label: 'Admin: Platforms tab, GetYourGuide mappings (blurred)', owner: 'robin' },
-      ],
+      screens: [],
     },
   ],
 };

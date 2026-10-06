@@ -22,20 +22,57 @@ export const RISE_TRAVEL = 1.45;
 /** The point of the circle nearest the camera: the front panel stands here. */
 export const FRONT_SPOT: Vec3 = [CAROUSEL.centre[0], 0, CAROUSEL.centre[2] + CAROUSEL.radius];
 
-/** Home camera: looks a little under the front cover so it sits in the upper part of the frame, above the label card. */
+/** Where the camera starts, before the first frame frames the front product (homeFraming). */
 export const CAMERA_HOME: { position: Vec3; look: Vec3 } = {
   position: [0, 2.5, FRONT_SPOT[2] + 11],
   look: [FRONT_SPOT[0], CAROUSEL.height - 1.1, FRONT_SPOT[2]],
 };
 
+/** The commit history drawn under each cover: the gap under the cover, then its height (scene units). */
+export const FLOOR = { gap: 0.34, height: 1.45 } as const;
+
 /**
- * The home camera for a viewport: backs off on narrow (portrait) viewports so the front
- * cover still fits the width, and aims lower there so the cover clears the taller card.
+ * The page around the carousel, in px. On a wide viewport the product sheet stands on the
+ * left and the legend on the right; elsewhere the sheet sits under the screen, `phoneSheet` tall.
  */
-export function homeCamera(aspect: number): { position: Vec3; look: Vec3 } {
-  const d = Math.max(CAMERA_HOME.position[2] - FRONT_SPOT[2], zoomDistance(aspect, 50, 0.86));
-  const drop = Math.max(0, 1 - aspect) * 3.5;
-  return { position: [CAMERA_HOME.position[0], CAMERA_HOME.position[1], FRONT_SPOT[2] + d], look: [CAMERA_HOME.look[0], CAMERA_HOME.look[1] - drop, CAMERA_HOME.look[2]] };
+export const CAROUSEL_PAGE = { top: 104, bottom: 40, side: 40, sheetShare: 0.3, sheetMax: 440, legend: 224, gap: 36, maxScreen: 1100, phoneSheet: 300, phoneSide: 16 } as const;
+
+/** A viewport wide enough for the sheet beside the carousel. */
+export function isWide(width: number, height: number): boolean {
+  return width >= 1024 && width / Math.max(1, height) >= 1.15;
+}
+
+/** Width of the product sheet on a wide viewport, in px. */
+export function sheetWidth(width: number): number {
+  return Math.min(width * CAROUSEL_PAGE.sheetShare, CAROUSEL_PAGE.sheetMax);
+}
+
+/** The band, in px, where the front product (its screen and its commit history) is framed. */
+export function carouselBand(width: number, height: number): { left: number; right: number; top: number; bottom: number } {
+  const P = CAROUSEL_PAGE;
+  if (isWide(width, height)) return { left: P.side + sheetWidth(width) + P.gap, right: width - P.side - P.legend - P.gap, top: P.top, bottom: height - P.bottom };
+  return { left: P.phoneSide, right: width - P.phoneSide, top: P.top - 8, bottom: height - P.phoneSheet - 24 };
+}
+
+/**
+ * The home camera for a viewport: straight in front of the front product, at the distance
+ * that fits its screen and its commit history in the band, the view shifted (`offset`, px) so
+ * they sit in the middle of the band. `screenHeight` is the tallest cover, in scene units.
+ */
+export function homeFraming(width: number, height: number, screenHeight: number = PANEL.height, fovDeg = 50): { position: Vec3; look: Vec3; offset: [number, number] } {
+  const tanHalf = Math.tan((fovDeg * Math.PI) / 360);
+  const band = carouselBand(width, height);
+  const bw = Math.min(CAROUSEL_PAGE.maxScreen, Math.max(80, band.right - band.left));
+  const bh = Math.max(80, band.bottom - band.top);
+  const stack = screenHeight + FLOOR.gap + FLOOR.height;
+  // a scene unit is height / (2 d tanHalf) px at distance d
+  const d = Math.max((PANEL.width * height) / (2 * tanHalf * bw * 0.94), (stack * height) / (2 * tanHalf * bh * 0.9));
+  const y = CAROUSEL.height + screenHeight / 2 - stack / 2;
+  return {
+    position: [FRONT_SPOT[0], y, FRONT_SPOT[2] + d],
+    look: [FRONT_SPOT[0], y, FRONT_SPOT[2]],
+    offset: [(band.left + band.right) / 2 - width / 2, (band.top + band.bottom) / 2 - height / 2],
+  };
 }
 
 /** Where product `i` of `n` sits on the circle, relative to its centre. */
@@ -72,34 +109,32 @@ export function frontWeight(vy: number, index: number, n: number): number {
 }
 
 /**
- * Distance at which the cover fills `fill` of the viewport width, capped so its height
- * fits too (portrait viewports). `fovDeg` is the camera's vertical field of view.
- */
-export function zoomDistance(aspect: number, fovDeg = 50, fill = 0.78): number {
-  const tanHalf = Math.tan((fovDeg * Math.PI) / 360);
-  const forWidth = PANEL.width / (2 * tanHalf * aspect * fill);
-  const forHeight = PANEL.height / (2 * tanHalf * fill);
-  return Math.max(forWidth, forHeight);
-}
-
-/**
  * Room kept free around the zoomed screen, in px: the nav above, the chapter slider and the
  * card below. `side` is the share of the width kept free on each side (less on phones).
+ * A film plays without the card: it keeps only a thin margin at the bottom (`film`).
  */
-export const ZOOM_RESERVE = { top: 112, bottom: 324, bottomPortrait: 440, side: 0.19, sidePortrait: 0.04 } as const;
+export const ZOOM_RESERVE = { top: 112, bottom: 324, bottomPortrait: 440, side: 0.19, sidePortrait: 0.04, film: { bottom: 48, side: 0.07 } } as const;
+
+export type ZoomFrame = {
+  /** height of the tallest screen of the product, in scene units */
+  screenHeight?: number;
+  /** a film: no card under it, so it takes the whole free height */
+  film?: boolean;
+};
 
 /**
  * Camera preset inside a product for a viewport of `width` × `height` px: straight in front
  * of the cover, as large as the free band allows, the screen centred in that band (above
  * the slider and the card, which never move).
  */
-export function zoomCamera(width: number, height: number, fovDeg = 50): { position: Vec3; look: Vec3 } {
+export function zoomCamera(width: number, height: number, { screenHeight = PANEL.height, film = false }: ZoomFrame = {}, fovDeg = 50): { position: Vec3; look: Vec3 } {
   const tanHalf = Math.tan((fovDeg * Math.PI) / 360);
   const aspect = width / Math.max(1, height);
   const portrait = aspect < 1;
-  const side = portrait ? ZOOM_RESERVE.sidePortrait : ZOOM_RESERVE.side;
-  const band = Math.max(height * 0.25, height - ZOOM_RESERVE.top - (portrait ? ZOOM_RESERVE.bottomPortrait : ZOOM_RESERVE.bottom));
-  const screenPx = Math.min(width * (1 - 2 * side), (band * PANEL.width) / PANEL.height);
+  const side = film ? (portrait ? ZOOM_RESERVE.sidePortrait : ZOOM_RESERVE.film.side) : portrait ? ZOOM_RESERVE.sidePortrait : ZOOM_RESERVE.side;
+  const bottom = film ? ZOOM_RESERVE.film.bottom : portrait ? ZOOM_RESERVE.bottomPortrait : ZOOM_RESERVE.bottom;
+  const band = Math.max(height * 0.25, height - ZOOM_RESERVE.top - bottom);
+  const screenPx = Math.min(width * (1 - 2 * side), (band * PANEL.width) / screenHeight);
   const d = (PANEL.width * width) / (2 * tanHalf * aspect * screenPx);
   // the camera drops by the distance between the viewport centre and the band centre
   const worldPerPx = (2 * d * tanHalf) / height;

@@ -1,4 +1,8 @@
+import { repoOf } from '@/content/commits';
 import type { Room } from '@/content/schema';
+import { periodOf } from '@/lib/commits';
+
+const history = repoOf('dewex-os');
 
 // Sources: facts-dewex-os.md (extracted 2026-09-17 from the dewex-os repo), spec §5.2 (stops proposed, to confirm with Robin).
 export const dewexOs: Room = {
@@ -10,6 +14,10 @@ export const dewexOs: Room = {
   kicker: 'Internal platform, 2026',
   oneLiner:
     'The machine that runs the company: lead analysis, human QA, AI demo factory, outreach, finance. 13 BullMQ queues, 9 supervised LLM agents.',
+  role: 'Solo, for my own company',
+  period: periodOf(history),
+  stack: ['Next.js', 'BullMQ', 'Redis', 'OpenAI'],
+  url: null,
   metrics: [
     { value: '3,438', label: 'tests green', source: 'facts-dewex-os.md §8 (AGENTS.md:245, latest commit gate line)' },
     { value: '49', label: 'migrations, each tested', source: 'facts-dewex-os.md §8 (49 migrations, 49 paired test files)' },
@@ -34,10 +42,7 @@ export const dewexOs: Room = {
       title: 'Nothing ships unreviewed.',
       body:
         'A demo site is never ready without an agent verdict or a human one at the same content hash. The prompt forbids inventing any fact the scraped page does not contain. The writer and its reviewer run on different models, because the same model on both sides is one opinion.',
-      screens: [
-        { kind: 'placeholder', key: 'demos', label: 'Demo factory', owner: 'robin' },
-        { kind: 'placeholder', key: 'icebreakers', label: 'Ice-breaker review', owner: 'robin' },
-      ],
+      screens: [],
     },
     {
       key: 'ops',
@@ -49,10 +54,7 @@ export const dewexOs: Room = {
         { value: '150', label: 'calls per lead per day, fuse 1', source: 'facts-dewex-os.md §6d (callsPerProspect)' },
         { value: '$100', label: 'daily cap, fuse 2', source: 'facts-dewex-os.md §6d (dailyCapCents)' },
       ],
-      screens: [
-        { kind: 'placeholder', key: 'finance', label: 'Finance (amounts blurred)', owner: 'robin' },
-        { kind: 'placeholder', key: 'deployment', label: 'Deployment console', owner: 'robin' },
-      ],
+      screens: [],
     },
   ],
 };

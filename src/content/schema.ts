@@ -17,6 +17,20 @@ export const ImageScreenSchema = z.object({
   height: z.number().int().positive(),
 });
 
+/** A product film: plays muted and in a loop in the world, with a still (the poster) until it can. */
+export const VideoScreenSchema = z.object({
+  kind: z.literal('video'),
+  key: z.string().min(1),
+  src: z.string().regex(/^\/screens\/[a-z0-9-]+\/[a-z0-9-]+\.mp4$/),
+  poster: z.string().regex(/^\/screens\/[a-z0-9-]+\/[a-z0-9-]+\.(webp|jpg|png)$/),
+  /** what the film shows, for assistive tech */
+  alt: z.string().min(1),
+  caption: z.string().min(1),
+  /** of the film and of its poster (same size) */
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
 export const PlaceholderScreenSchema = z.object({
   kind: z.literal('placeholder'),
   key: z.string().min(1),
@@ -25,7 +39,7 @@ export const PlaceholderScreenSchema = z.object({
   owner: z.enum(['robin', 'me']),
 });
 
-export const ScreenSchema = z.discriminatedUnion('kind', [ImageScreenSchema, PlaceholderScreenSchema]);
+export const ScreenSchema = z.discriminatedUnion('kind', [ImageScreenSchema, VideoScreenSchema, PlaceholderScreenSchema]);
 
 export const StopSchema = z.object({
   key: z.string().min(1),
@@ -33,7 +47,8 @@ export const StopSchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
   metrics: z.array(MetricSchema).max(3).optional(),
-  screens: z.array(ScreenSchema).min(1),
+  /** may be empty: a product shown by one film keeps the text of its other stops for the plain page */
+  screens: z.array(ScreenSchema),
 });
 
 export const LogoSchema = z.object({
@@ -54,10 +69,17 @@ export const RoomSchema = z.object({
   logo: LogoSchema,
   kicker: z.string().min(1),
   oneLiner: z.string().min(1),
+  /** what Robin did, one short line */
+  role: z.string().min(1),
+  /** "Since Jul 2026", from the commit history (periodOf) */
+  period: z.string().min(1),
+  stack: z.array(z.string().min(1)).min(1).max(4),
+  /** the product online, when it is public */
+  url: z.string().url().nullable(),
   metrics: z.tuple([MetricSchema, MetricSchema, MetricSchema]),
   stops: z.array(StopSchema).min(1).max(4),
   status: z.enum(['live', 'internal', 'prototype']),
-});
+}).refine((r) => r.stops.some((s) => s.screens.length > 0), { message: 'a product needs at least one screen, its cover' });
 
 const LinkSchema = z.object({ label: z.string().min(1), href: z.string().min(1) });
 
@@ -92,6 +114,7 @@ export const SiteSchema = z.object({
 
 export type Metric = z.infer<typeof MetricSchema>;
 export type ImageScreen = z.infer<typeof ImageScreenSchema>;
+export type VideoScreen = z.infer<typeof VideoScreenSchema>;
 export type PlaceholderScreen = z.infer<typeof PlaceholderScreenSchema>;
 export type Screen = z.infer<typeof ScreenSchema>;
 export type Stop = z.infer<typeof StopSchema>;

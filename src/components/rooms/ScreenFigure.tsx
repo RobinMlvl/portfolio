@@ -9,6 +9,15 @@ export function ScreenFigure({ screen }: { screen: Screen }) {
       </figure>
     );
   }
+  if (screen.kind === 'video') {
+    // the plain page never starts a film by itself: the visitor presses play, with sound
+    return (
+      <figure className="overflow-hidden rounded-xl bg-surface p-1.5 shadow-[0_10px_30px_-12px_rgb(0_0_0/.35)]">
+        <video src={screen.src} poster={screen.poster} width={screen.width} height={screen.height} playsInline controls preload="none" aria-label={screen.alt} className="h-auto w-full rounded-lg" />
+        <figcaption className="kicker px-3 py-2.5 text-fg-2">{screen.caption}</figcaption>
+      </figure>
+    );
+  }
   return (
     <figure className="overflow-hidden rounded-xl bg-surface p-1.5 shadow-[0_10px_30px_-12px_rgb(0_0_0/.35)]">
       <Image src={screen.src} alt={screen.alt} width={screen.width} height={screen.height} sizes="(max-width: 900px) 100vw, 800px" className="h-auto w-full" />

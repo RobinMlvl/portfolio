@@ -26,27 +26,18 @@ describe('Hero', () => {
     serve();
     render(<Hero copy={copy} />);
     const total = repos.reduce((n, r) => n + r.total, 0).toLocaleString('en-US');
-    expect(screen.getByText(new RegExp(`Commit history of Dewex, Dewex OS, Swiss Local Adventures: ${total} commits`))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Commit history of ${repos.map((r) => r.name).join(', ').replace('.', '\\.')}: ${total} commits`))).toBeInTheDocument();
     const products = screen.getByRole('group', { name: 'Products in the history' });
     expect(within(products).getAllByRole('button').map((b) => b.textContent)).toEqual(repos.map((r) => r.name));
   });
 
-  it('loads every commit once, and a product of the legend can be kept alone and released', () => {
-    const fetch = serve();
+  it('keeps one product of the legend alone, and releases it', () => {
+    serve();
     render(<Hero copy={copy} />);
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith('/commits/all.json');
     const os = screen.getByRole('button', { name: 'Dewex OS' });
     fireEvent.click(os);
     expect(os).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(os);
     expect(os).toHaveAttribute('aria-pressed', 'false');
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('says so when the history cannot be loaded', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 }) as Response));
-    render(<Hero copy={copy} />);
-    expect(await screen.findByText('The history could not be loaded.')).toBeInTheDocument();
   });
 });

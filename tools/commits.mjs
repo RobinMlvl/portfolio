@@ -24,6 +24,7 @@ const REPOS = [
   { slug: 'dewex', name: 'Dewex', path: '~/Documents/Business/Dewex/Dewex-Software/dewex-app', branch: 'main' },
   { slug: 'dewex-os', name: 'Dewex OS', path: '~/Documents/Business/Dewex/Dewex-Software/dewex-os', branch: 'main' },
   { slug: 'swiss-local-adventures', name: 'Swiss Local Adventures', path: '~/Documents/Business/Dewex/Client/Swiss Local Adventures/dev/swisslocalaventures', branch: 'main' },
+  { slug: 'riview', name: 'riview.me', path: '~/Documents/Business/Riview.me/Dev/riviews', branch: 'main' },
 ];
 
 const denyList = (() => {

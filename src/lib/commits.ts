@@ -21,7 +21,7 @@ export type History = {
 };
 
 /** One colour per product, in the order of `repos`. */
-export const REPO_COLOR = ['#ECEDEE', '#F2B544', '#7EE0A1'];
+export const REPO_COLOR = ['#ECEDEE', '#F2B544', '#7EE0A1', '#A5B4FC'];
 
 /** At most this many columns: one per day for the most recent days, the rest in the first column. */
 export const MAX_COLUMNS = 120;
@@ -56,6 +56,16 @@ export function onlyRepo(h: History, repo: number): History {
   return { ...h, commits, total: commits.length };
 }
 
+/** A product's commits per week over its own span, oldest first; empty when it has none. */
+export function weeklyCounts(h: Pick<History, 'commits'>, repo: number): number[] {
+  const own = h.commits.filter((c) => c[4] === repo);
+  if (!own.length) return [];
+  const first = own[0][0];
+  const weeks = new Array<number>(Math.floor((own[own.length - 1][0] - first) / 7) + 1).fill(0);
+  for (const c of own) weeks[Math.floor((c[0] - first) / 7)]++;
+  return weeks;
+}
+
 /** The column a commit belongs to. */
 export function columnOf(t: Timeline, index: number): number {
   let lo = 0, hi = t.columns - 1;
@@ -82,6 +92,18 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /** The calendar day `day` days after `first` (YYYY-MM-DD), as a UTC date. */
 export function dateOf(first: string, day: number): Date {
   return new Date(Date.parse(`${first}T00:00:00Z`) + day * DAY);
+}
+
+/**
+ * A product's period from its history: "Since Jul 2026" while commits still come in (the last
+ * one at most 31 days before the data was generated), "Feb to Jul 2025" or "Oct 2025 to Aug 2026"
+ * once it went quiet.
+ */
+export function periodOf(r: { first: string; last: string; generated: string }): string {
+  const day = (iso: string) => new Date(Date.parse(`${iso}T00:00:00Z`));
+  const a = day(r.first), b = day(r.last), month = (d: Date) => `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  if ((day(r.generated).getTime() - b.getTime()) / DAY <= 31) return `Since ${month(a)}`;
+  return a.getUTCFullYear() === b.getUTCFullYear() ? `${MONTHS[a.getUTCMonth()]} to ${month(b)}` : `${month(a)} to ${month(b)}`;
 }
 
 /** 22 Jul 2026 */

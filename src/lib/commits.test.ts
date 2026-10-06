@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { columnLabel, columnOf, dayLabel, logWindow, monthStarts, onlyRepo, pick, splitSubject, timelineOf, type Commit, type History } from '@/lib/commits';
+import { columnLabel, columnOf, dayLabel, logWindow, monthStarts, onlyRepo, periodOf, pick, splitSubject, timelineOf, weeklyCounts, type Commit, type History } from '@/lib/commits';
 
 const c = (day: number, i: number, repo = 0): Commit => [day, '10:00', `h${i}`, `feat: commit ${i}`, repo];
 // day 0: 3 commits, day 1: none, day 2: 1 commit
@@ -76,5 +76,24 @@ describe('logWindow', () => {
   it('shows the last rows up to the current commit while playing', () => {
     expect(logWindow(t, 25, null, 6)).toEqual([20, 26]);
     expect(logWindow(t, 2, null, 6)).toEqual([0, 3]);
+  });
+});
+
+describe('periodOf', () => {
+  it('says since when while commits still come in', () => {
+    expect(periodOf({ first: '2026-07-05', last: '2026-10-05', generated: '2026-10-06' })).toBe('Since Jul 2026');
+  });
+  it('gives both ends once a product went quiet, the year once when it is the same', () => {
+    expect(periodOf({ first: '2025-02-22', last: '2025-07-07', generated: '2026-10-06' })).toBe('Feb to Jul 2025');
+    expect(periodOf({ first: '2025-10-15', last: '2026-08-29', generated: '2026-10-06' })).toBe('Oct 2025 to Aug 2026');
+  });
+});
+
+describe('weeklyCounts', () => {
+  it('counts one product\'s commits week by week over its own span', () => {
+    const h = { commits: [c(3, 0, 1), c(3, 1, 0), c(4, 2, 1), c(17, 3, 1)] };
+    expect(weeklyCounts(h, 1)).toEqual([2, 0, 1]); // days 3 to 9, 10 to 16, 17
+    expect(weeklyCounts(h, 0)).toEqual([1]);
+    expect(weeklyCounts(h, 2)).toEqual([]);
   });
 });
