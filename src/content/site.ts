@@ -14,7 +14,7 @@ export const site: Site = {
   hero: {
     kicker: 'Full-stack engineer',
     kickerNote: 'Next.js, Node, PostgreSQL, Stripe',
-    name: ['Robin', 'Malaval'],
+    name: 'Robin Malaval',
     sub: {
       lead: 'I build software end to end, then I run it. Five products, one pair of hands, from the first commit to the server bill. ',
       emphasis: "I made this site because a CV can't show how things hold under load",
@@ -22,41 +22,36 @@ export const site: Site = {
     },
     cta: 'See the work',
   },
-  also: {
-    kicker: 'Also',
+  // Sources: spec §5.6 (Algoritmi: EN/JA/zh-TW, call staff on SSE + WebRTC, private code),
+  // facts-drinxlab.md (2026-09-17) and the ESP32 firmware at ~/Documents/PlatformIO/Projects/Drinxlab (src/main.cpp).
+  sideProjects: {
+    title: 'Side projects',
     items: [
       {
         name: 'Algoritmi',
-        year: '2026, volunteer',
+        year: '2026',
+        kind: 'volunteer',
         url: 'https://algoritmigroup.com',
-        body:
-          'Guest portal in three languages for hostels with no front desk in Takayama, Japan. I built the "call staff" flow: the guest rings from a phone, reception picks up, a real-time layer on server-sent events and WebRTC carries the call. Private code, no screenshots.',
+        line: 'The "call staff" flow of a guest portal for hostels with no front desk in Takayama, on WebRTC and server-sent events.',
+        tags: ['WebRTC', 'SSE', '3 languages'],
+        picture: { kind: 'flow', steps: ['phone', 'SSE', 'desk'] },
       },
       {
-        // Sources: facts-drinxlab.md (2026-09-17), the ESP32 firmware at ~/Documents/PlatformIO/Projects/Drinxlab (src/main.cpp, 161 lines)
         name: 'Drinxlab',
-        year: '2023 to 2024, prototype',
+        year: '2023 to 2024',
+        kind: 'prototype',
         url: null,
-        body:
-          'A cocktail machine I designed and built: a printed housing, standard bottles as reservoirs, eight pumps, an ESP32 running 161 lines of C++ over a TLS WebSocket, and an app that maps every pump to a recipe. Pitched through Station F\'s Launch programme.',
-      },
-      {
-        name: 'Nicolas Vivaudou',
-        year: '2025',
-        url: 'https://nicolasvivaudou.com',
-        body:
-          'Bilingual portfolio for a Montreal drone photographer: galleries, light and dark theme, and an admin area behind a JWT session so he manages his own images and inbox. No CMS, no framework beyond Next.js.',
+        line: 'A cocktail machine: printed housing, eight pumps, an ESP32 in C++ and an app mapping pumps to recipes.',
+        tags: ['ESP32', 'C++', 'Station F'],
+        picture: { kind: 'image', src: '/screens/side/drinxlab.webp', width: 960, height: 540 },
       },
     ],
   },
   contact: {
-    kicker: 'Contact',
+    title: 'Open to a full-stack role',
     email: 'malaval.robin@hotmail.fr',
-    phone: '+33 6 13 03 85 19',
     languages: 'French (native), English (fluent), Spanish (conversational)',
     cvHref: '/Robin_Malaval_CV.pdf',
     github: 'https://github.com/RobinMlvl',
-    linkedin: null,
-    portraitAlt: 'Portrait of Robin Malaval',
   },
 };

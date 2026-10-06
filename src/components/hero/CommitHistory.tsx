@@ -61,7 +61,8 @@ export function CommitHistory() {
     const gap = t.earlier ? 1 : 0;
     const geo = () => {
       const pad = s.W < 768 ? 20 : 40, x0 = pad, x1 = s.W - pad, colW = (x1 - x0) / (t.columns + gap);
-      const top = 46, axis = s.H - 30, bottom = axis - 8, mid = (top + bottom) / 2, half = (bottom - top) / 2;
+      // on a phone the legend takes two lines above the waves
+      const top = s.W < 768 ? 58 : 46, axis = s.H - 30, bottom = axis - 8, mid = (top + bottom) / 2, half = (bottom - top) / 2;
       return { x0, x1, colW, top, axis, mid, half, lineH: (2 * half) / t.tallest };
     };
     const xOf = (G: ReturnType<typeof geo>, column: number) => G.x0 + (column + (column >= 1 ? gap : 0)) * G.colW;
@@ -171,7 +172,7 @@ export function CommitHistory() {
 
   return (
     <>
-      <div className="absolute right-10 top-[13vh] w-[min(44vw,640px)] font-mono text-[13px] leading-[1.78] text-fg-2 max-md:inset-x-5 max-md:bottom-[calc(28vh+16px)] max-md:top-auto max-md:w-auto max-md:text-[12px]">
+      <div className="absolute right-10 top-[88px] bottom-[calc(max(34vh,200px)+16px)] flex w-[min(44vw,640px)] flex-col justify-center-safe font-mono text-[13px] leading-[1.78] text-fg-2 max-md:inset-x-5 max-md:top-auto max-md:bottom-[calc(max(28vh,200px)+16px)] max-md:w-auto max-md:text-[12px]">
         <div className="flex items-baseline justify-between gap-4 border-b border-line px-2 pb-2">
           <span className="text-fg">git log</span>
           <span className="truncate">{shown ? shown.header : ''}</span>
@@ -194,7 +195,7 @@ export function CommitHistory() {
       </div>
       <div className="absolute inset-x-0 bottom-0 h-[34vh] min-h-[200px] max-md:h-[28vh]">
         <canvas ref={canvasRef} aria-hidden className="absolute inset-0 h-full w-full cursor-crosshair font-mono" />
-        <div role="group" aria-label="Products in the history" className="absolute right-10 top-0 flex gap-5 font-mono text-[12px] max-md:left-5 max-md:right-5 max-md:gap-3 max-md:text-[11px]">
+        <div role="group" aria-label="Products in the history" className="absolute right-10 top-0 flex gap-5 font-mono text-[12px] max-md:left-5 max-md:right-5 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-1 max-md:text-[11px]">
           {repos.map((r, i) => (
             <button key={r.slug} type="button" onClick={() => setSolo((v) => (v === i ? null : i))} aria-pressed={solo === i} className={`flex items-center gap-2 whitespace-nowrap transition-opacity ${solo === null || solo === i ? 'text-fg-2 opacity-100' : 'text-muted opacity-50'} hover:text-fg`}>
               <span aria-hidden className="h-2 w-2 rounded-[2px]" style={{ background: REPO_COLOR[i] }} />

@@ -5,7 +5,7 @@ import { periodOf } from '@/lib/commits';
 const history = repoOf('riview');
 
 // Sources: facts-riview.md (extracted 2026-09-17 from the riviews repo), the repo's package.json.
-// Back among the products on 2026-10-06, in the place of Drinxlab (which moved to Also).
+// Back among the products on 2026-10-06, in the place of Drinxlab (which moved to the side projects).
 export const riview: Room = {
   slug: 'riview',
   index: 4,

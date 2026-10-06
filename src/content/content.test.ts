@@ -10,9 +10,9 @@ import { site } from '@/content/site';
 import { repos } from '@/content/commits';
 
 describe('rooms', () => {
-  it('has the four rooms in the decided order, Drinxlab listed in Also', () => {
+  it('has the four rooms in the decided order, Drinxlab listed in the side projects', () => {
     expect(rooms.map((r) => r.slug)).toEqual(['dewex', 'dewex-os', 'swiss-local-adventures', 'riview']);
-    expect(site.also.items.map((i) => i.name)).toContain('Drinxlab');
+    expect(site.sideProjects.items.map((i) => i.name)).toContain('Drinxlab');
     expect(rooms.map((r) => r.index)).toEqual([1, 2, 3, 4]);
   });
   it('validates against the schema', () => {
@@ -47,8 +47,16 @@ describe('site', () => {
   it('validates against the schema', () => {
     expect(() => SiteSchema.parse(site)).not.toThrow();
   });
+  it('every side project picture exists in public/ at the declared dimensions', async () => {
+    for (const p of site.sideProjects.items) {
+      if (p.picture.kind !== 'image') continue;
+      expect(fs.existsSync(path.join('public', p.picture.src)), p.picture.src).toBe(true);
+      const meta = await sharp(path.join('public', p.picture.src)).metadata();
+      expect([meta.width, meta.height]).toEqual([p.picture.width, p.picture.height]);
+    }
+  });
   it('hero copy is generalist: no addressee, no location', () => {
-    expect(site.hero.name).toEqual(['Robin', 'Malaval']);
+    expect(site.hero.name).toBe('Robin Malaval');
     expect(collectStrings(site).join(' ')).not.toMatch(/Treble|Reykjav|Iceland|64\.14/);
   });
 });
@@ -76,10 +84,9 @@ describe('copy rules', () => {
 });
 
 describe.skipIf(!process.env.RELEASE_CHECK)('release gate', () => {
-  it('has the CV, no placeholder screens, an https site url and a LinkedIn', () => {
+  it('has the CV, no placeholder screens and an https site url', () => {
     expect(fs.existsSync(path.join('public', site.contact.cvHref))).toBe(true);
     expect(rooms.flatMap((r) => r.stops.flatMap((s) => s.screens)).filter((s) => s.kind === 'placeholder')).toEqual([]);
     expect(process.env.NEXT_PUBLIC_SITE_URL ?? '').toMatch(/^https:\/\//);
-    expect(site.contact.linkedin).not.toBeNull();
   });
 });

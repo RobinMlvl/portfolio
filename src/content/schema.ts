@@ -83,6 +83,23 @@ export const RoomSchema = z.object({
 
 const LinkSchema = z.object({ label: z.string().min(1), href: z.string().min(1) });
 
+/** A project outside the products: one row of the journal at the end of the site. */
+export const SideProjectSchema = z.object({
+  name: z.string().min(1),
+  year: z.string().min(1),
+  /** volunteer, client, prototype... */
+  kind: z.string().min(1),
+  url: z.string().url().nullable(),
+  /** one line, short enough to sit beside the picture */
+  line: z.string().min(1).max(130),
+  tags: z.array(z.string().min(1)).min(1).max(3),
+  /** a capture, or a sketch of the flow when the code and the product are private */
+  picture: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('image'), src: z.string().regex(/^\/screens\/side\/[a-z0-9-]+\.(webp|jpg|png)$/), width: z.number().int().positive(), height: z.number().int().positive() }),
+    z.object({ kind: z.literal('flow'), steps: z.array(z.string().min(1)).min(2).max(4) }),
+  ]),
+});
+
 export const SiteSchema = z.object({
   nav: z.object({
     openToWork: z.string().min(1),
@@ -92,23 +109,21 @@ export const SiteSchema = z.object({
   hero: z.object({
     kicker: z.string().min(1),
     kickerNote: z.string().min(1),
-    name: z.tuple([z.string().min(1), z.string().min(1)]),
+    name: z.string().min(1),
     sub: z.object({ lead: z.string().min(1), emphasis: z.string().min(1), tail: z.string().min(1) }),
     cta: z.string().min(1),
   }),
-  also: z.object({
-    kicker: z.string().min(1),
-    items: z.array(z.object({ name: z.string().min(1), year: z.string().min(1), url: z.string().url().nullable(), body: z.string().min(1) })).min(1),
+  sideProjects: z.object({
+    title: z.string().min(1),
+    items: z.array(SideProjectSchema).min(1),
   }),
   contact: z.object({
-    kicker: z.string().min(1),
+    /** what Robin is looking for: the title of the closing */
+    title: z.string().min(1),
     email: z.string().email(),
-    phone: z.string().min(1),
     languages: z.string().min(1),
     cvHref: z.string().min(1),
     github: z.string().url(),
-    linkedin: z.string().url().nullable(),
-    portraitAlt: z.string().min(1),
   }),
 });
 
@@ -121,6 +136,7 @@ export type Stop = z.infer<typeof StopSchema>;
 export type Logo = z.infer<typeof LogoSchema>;
 export type Room = z.infer<typeof RoomSchema>;
 export type Site = z.infer<typeof SiteSchema>;
+export type SideProject = z.infer<typeof SideProjectSchema>;
 
 /**
  * Client-safe hero copy: no `source` field, so this type (and the client
@@ -129,7 +145,7 @@ export type Site = z.infer<typeof SiteSchema>;
 export type HeroCopy = {
   kicker: string;
   kickerNote: string;
-  name: [string, string];
+  name: string;
   sub: { lead: string; emphasis: string; tail: string };
   cta: string;
 };

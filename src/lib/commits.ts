@@ -50,6 +50,12 @@ export function timelineOf(h: Pick<History, 'days' | 'commits'>): Timeline {
   return { columns, earlier, start, count, tallest: Math.max(1, ...count) };
 }
 
+/** The columns that are one day each (all but the gathered first one): where they start, how many, their commits, the tallest. */
+export function lastDays(t: Timeline): { from: number; days: number; commits: number; tallest: number } {
+  const from = t.earlier ? 1 : 0;
+  return { from, days: t.columns - from, commits: t.start[t.columns] - t.start[from], tallest: Math.max(1, ...t.count.slice(from)) };
+}
+
 /** Only the commits of one product, on the same days (the axis does not move). */
 export function onlyRepo(h: History, repo: number): History {
   const commits = h.commits.filter((c) => c[4] === repo);

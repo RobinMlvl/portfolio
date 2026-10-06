@@ -14,7 +14,7 @@ import { heroLift } from '@/lib/world/state';
 import { useWorld } from '@/lib/world/useWorld';
 import { stackOf } from '@/lib/world/screens';
 import type { NavTarget } from '@/lib/world/state';
-import { SheetOverlay } from './SheetOverlay';
+import { SheetOverlay, type SheetOverlayHandle } from './SheetOverlay';
 
 const World = dynamic(() => import('./World').then((m) => m.World), { ssr: false });
 
@@ -34,6 +34,7 @@ export function WorldPage({ rooms, mode, hero, nav }: WorldPageProps) {
   const world = useWorld(specs);
   const bus = useMemo(() => createFrameBus(), []);
   const heroLayer = useRef<HTMLDivElement>(null);
+  const sheet = useRef<SheetOverlayHandle>(null);
 
   // the hero lifts imperatively, once per frame, from the state machine
   useEffect(() => bus.subscribe(() => {
@@ -67,6 +68,7 @@ export function WorldPage({ rooms, mode, hero, nav }: WorldPageProps) {
     if (!target) return;
     e.preventDefault();
     world.actions.nav(target);
+    if (target === 'contact') sheet.current?.showContact();
   };
 
   return (
@@ -75,7 +77,7 @@ export function WorldPage({ rooms, mode, hero, nav }: WorldPageProps) {
       <main data-phase={world.snapshot.phase} data-room={world.snapshot.room} data-stop={world.snapshot.stop} data-world-visible={world.snapshot.worldVisible ? 'true' : 'false'}>
         <World world={world} rooms={rooms} mode={mode} bus={bus} />
         <div ref={heroLayer} onClickCapture={onNavClick} className="fixed inset-0 z-20 will-change-transform"><Hero copy={hero} /></div>
-        <SheetOverlay world={world} frame={bus.subscribe} />
+        <SheetOverlay ref={sheet} world={world} frame={bus.subscribe} />
       </main>
     </>
   );

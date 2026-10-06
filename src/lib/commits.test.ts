@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { columnLabel, columnOf, dayLabel, logWindow, monthStarts, onlyRepo, periodOf, pick, splitSubject, timelineOf, weeklyCounts, type Commit, type History } from '@/lib/commits';
+import { columnLabel, columnOf, dayLabel, lastDays, logWindow, monthStarts, onlyRepo, periodOf, pick, splitSubject, timelineOf, weeklyCounts, type Commit, type History } from '@/lib/commits';
 
 const c = (day: number, i: number, repo = 0): Commit => [day, '10:00', `h${i}`, `feat: commit ${i}`, repo];
 // day 0: 3 commits, day 1: none, day 2: 1 commit
@@ -17,6 +17,16 @@ describe('timelineOf', () => {
     expect(t.count[0]).toBe(2); // days 0 to 235
     expect(t.count[1]).toBe(1); // day 236, the first with its own column
     expect(t.count[119]).toBe(1); // the last day
+  });
+});
+
+describe('lastDays', () => {
+  it('keeps every column when each is one day', () => {
+    expect(lastDays(timelineOf(short))).toEqual({ from: 0, days: 3, commits: 4, tallest: 3 });
+  });
+  it('leaves out the gathered first column, its commits and its height', () => {
+    const t = timelineOf({ days: 355, commits: [c(0, 0), c(1, 1), c(2, 2), c(236, 3), c(354, 4)] });
+    expect(lastDays(t)).toEqual({ from: 1, days: 119, commits: 2, tallest: 1 });
   });
 });
 

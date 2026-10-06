@@ -1,4 +1,4 @@
-import { Also } from './Also';
+import { SideProjects } from './SideProjects';
 import { Contact } from './Contact';
 
 export type SheetMode = 'static' | 'overlay';
@@ -7,7 +7,7 @@ export type SheetMode = 'static' | 'overlay';
 export function Sheet({ mode }: { mode: SheetMode }) {
   return (
     <div data-sheet-mode={mode} className="bg-bg">
-      <Also />
+      <SideProjects />
       <Contact />
     </div>
   );

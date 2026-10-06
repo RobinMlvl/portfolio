@@ -12,7 +12,7 @@ describe('Page', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
-  it('renders six h2 section headings: four rooms, Also, Contact', () => {
+  it('renders six h2 section headings: four rooms, the side projects, the contact', () => {
     render(<Page />);
     expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(6);
   });
