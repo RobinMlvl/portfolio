@@ -11,6 +11,7 @@ import {
   heroLift,
   leaveRoom,
   ringAngle,
+  release,
   scroll,
   settle as magnet,
   sheetRise,
@@ -64,17 +65,39 @@ describe('continuous scroll and magnet', () => {
     expect(end.phase).toBe('sheet');
   });
 
-  it('the magnet finishes toward the nearest unit, in both directions', () => {
-    const low = scroll(createWorld(), scrollPx * 0.4, config);
-    expect(magnet(low, config).vyTarget).toBe(0);
-    expect(magnet(low, config).phase).toBe('hero');
-    const high = scroll(createWorld(), scrollPx * 0.6, config);
-    expect(magnet(high, config).vyTarget).toBe(1);
-    expect(magnet(high, config).phase).toBe('carousel');
-    const between = scroll(createWorld(), scrollPx * 2.7, config);
-    expect(magnet(between, config).vyTarget).toBe(3);
-    const exact = magnet(high, config);
-    expect(magnet(exact, config)).toBe(exact);
+  it('any forward move lifts the hero; going back into it takes half the way', () => {
+    const up = scroll(createWorld(), scrollPx * 0.1, config);
+    const lifted = magnet(up, config);
+    expect(lifted.vyTarget).toBe(1);
+    expect(lifted.phase).toBe('carousel');
+    expect(magnet(lifted, config)).toBe(lifted);
+    expect(magnet(scroll(lifted, -scrollPx * 0.3, config), config).vyTarget).toBe(1);
+    const down = magnet(scroll(lifted, -scrollPx * 0.6, config), config);
+    expect(down.vyTarget).toBe(0);
+    expect(down.phase).toBe('hero');
+  });
+
+  it('a pause finishes the move on the next product in its direction; only a nudge goes back', () => {
+    const at1 = settle(forward(createWorld()));
+    expect(magnet(scroll(at1, scrollPx * 0.3, config), config).vyTarget).toBe(2);
+    expect(magnet(scroll(at1, scrollPx * 0.02, config), config).vyTarget).toBe(1);
+    const at2 = settle(forward(createWorld(), 2));
+    const back = magnet(scroll(at2, -scrollPx * 0.3, config), config);
+    expect(back.vyTarget).toBe(1);
+    expect(back.lastDir).toBe(0);
+    expect(magnet(back, config)).toBe(back);
+  });
+
+  it('a flick carries the carousel on and lands in its direction, never past the first product nor into the sheet', () => {
+    const at1 = settle(forward(createWorld()));
+    const moving = scroll(at1, scrollPx * 0.3, config);
+    expect(release(moving, scrollPx * 1.5, config).vyTarget).toBe(3);
+    expect(release(moving, -scrollPx * 2, config).vyTarget).toBe(1); // the hero stays lifted
+    expect(release(moving, 0, config).vyTarget).toBe(2); // no flick: like a pause
+    expect(release(scroll(at1, scrollPx * (N - 1.2), config), scrollPx * 5, config).vyTarget).toBe(N); // the sheet stays down
+    expect(release(scroll(createWorld(), scrollPx * 0.5, config), scrollPx * 3, config).vyTarget).toBe(1); // out of the hero: the first product
+    const inside = settle(enterRoom(at1, 0, config));
+    expect(release(inside, scrollPx, config)).toBe(inside);
   });
 
   it('a key step counts from the nearest unit of a scrolled target', () => {
@@ -100,7 +123,7 @@ describe('continuous scroll and magnet', () => {
     expect(magnet(s, config)).toBe(s);
   });
 
-  it('in the sheet, forward pixels are native; backward pixels from its top lower it and the magnet decides', () => {
+  it('in the sheet, forward pixels are native; backward pixels from its top lower it, and closing takes half the way', () => {
     const open = settle(scroll(createWorld(), scrollPx * (N + 1), config));
     expect(open.phase).toBe('sheet');
     expect(scroll(open, 100, config)).toBe(open);
@@ -192,10 +215,10 @@ describe('rooms', () => {
     expect(enterRoom(sheet, 0, config).phase).toBe('sheet');
   });
 
-  it('entering freezes the ring on the room and flies the camera in', () => {
+  it('entering turns the ring to the room while the camera flies in', () => {
     const s = enterRoom(atRoom0, 2, config);
     expect(s.phase).toBe('entering');
-    expect(s.vy).toBe(3);
+    expect(s.vy).toBe(atRoom0.vy);
     expect(s.vyTarget).toBe(3);
     expect(s.roomIdx).toBe(2);
     expect(flightProgress(s)).toBe(0);

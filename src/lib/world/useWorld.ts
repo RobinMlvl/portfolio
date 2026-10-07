@@ -16,6 +16,7 @@ import {
   goToRoom,
   goToStop,
   leaveRoom,
+  release,
   scroll,
   settle,
   step,
@@ -85,9 +86,11 @@ export function useWorld(rooms: RoomSpec[]): WorldHandle {
     };
     return attachWorldInput(window, {
       onScroll: (px) => apply(scroll(ref.current, px, config, sheetAtTop.current)),
+      onRelease: (px) => { apply(release(ref.current, px, config)); },
       onSettle: () => { apply(settle(ref.current, config)); },
       onStep: (dir) => apply(step(ref.current, dir, config, sheetAtTop.current)),
       isNative: (dir) => ref.current.phase === 'sheet' && (dir > 0 || !sheetAtTop.current),
+      sideways: () => ref.current.phase === 'carousel',
       onKey: (action) => {
         const s = ref.current;
         if (action === 'escape') set(leaveRoom(s));

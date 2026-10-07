@@ -259,7 +259,8 @@ function Panel({ world, roomIndex, index, width, height, map, onClick, onLook, c
   });
   return (
     <group ref={group} position={[0, 0, -index * STACK_GAP]} visible={false}>
-      <mesh onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined} onPointerOver={onClick ? () => { document.body.style.cursor = 'pointer'; } : undefined} onPointerOut={onClick ? () => { document.body.style.cursor = ''; } : undefined}>
+      {/* a swipe that starts and ends on the cover turns the carousel; it does not open the product */}
+      <mesh onClick={onClick ? (e) => { e.stopPropagation(); if (e.delta <= 10) onClick(); } : undefined} onPointerOver={onClick ? () => { document.body.style.cursor = 'pointer'; } : undefined} onPointerOut={onClick ? () => { document.body.style.cursor = ''; } : undefined}>
         <planeGeometry args={[width, height]} />
         {/* a new material when the map changes: three.js compiles the map into the shader only at creation */}
         <meshBasicMaterial key={map ? map.uuid : 'plain'} ref={fill} map={map} color={map ? '#ffffff' : PLACEHOLDER} transparent opacity={0} toneMapped={false} />

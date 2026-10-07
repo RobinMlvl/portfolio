@@ -53,11 +53,14 @@ export function WorldPage({ rooms, mode, hero, nav }: WorldPageProps) {
     return () => { delete w.__worldRef; };
   }, [world]);
 
-  // the document must not scroll natively while the world owns the wheel
+  // the document must not scroll natively while the world owns the wheel and the finger
+  // (no pull-to-refresh, no bounce on a phone)
   useEffect(() => {
-    const prev = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    return () => { document.documentElement.style.overflow = prev; };
+    const root = document.documentElement.style;
+    const prev = { overflow: root.overflow, overscrollBehavior: root.overscrollBehavior };
+    root.overflow = 'hidden';
+    root.overscrollBehavior = 'none';
+    return () => { root.overflow = prev.overflow; root.overscrollBehavior = prev.overscrollBehavior; };
   }, []);
 
   // nav anchors and the hero CTA drive the machine instead of jumping the document

@@ -1,10 +1,12 @@
 /**
  * Pure state machine for the 3D world (spec §3.2). No DOM, no three.js.
  *
- * Interaction model: a continuous virtual scroll with a magnet (spec §3.2). The input
- * layer feeds wheel and touch pixels to `scroll(dy)`, which moves the virtual target in
- * proportion (`scrollPx` per unit); after a pause it calls `settle()`, which finishes
- * toward the nearest unit (hero down or up, room in front, stop, sheet open). Keys use
+ * Interaction model: a continuous virtual scroll (spec §3.2). The input layer feeds wheel
+ * and touch pixels to `scroll(dy)`, which moves the virtual target in proportion (`scrollPx`
+ * per unit). Nothing pulls back: after a pause (`settle()`) or when the finger lifts
+ * (`release()`, which also carries a flick on), the move finishes on the next whole position
+ * in the direction it was going (hero lifted, product in front, sheet open); only a nudge
+ * goes back, and going back into the hero or out of the sheet takes half the way. Keys use
  * `step(±1)`, one unit at a time. `tick` eases the visible values toward the target.
  *
  * Virtual position `vy`:
@@ -65,6 +67,8 @@ export interface WorldState {
   roomProgTarget: number;
   /** pixels pushed past an end of the product's screens, signed; the product lets go past `exitPx` */
   overscroll: number;
+  /** direction of the last move of the virtual scroll, so a pause finishes it that way; 0 once landed */
+  lastDir: -1 | 0 | 1;
   transition: Transition | null;
 }
 
@@ -74,7 +78,7 @@ export type StepDir = 1 | -1;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 export function createWorld(): WorldState {
-  return { phase: 'hero', vy: 0, vyTarget: 0, roomIdx: 0, roomProg: 0, roomProgTarget: 0, overscroll: 0, transition: null };
+  return { phase: 'hero', vy: 0, vyTarget: 0, roomIdx: 0, roomProg: 0, roomProgTarget: 0, overscroll: 0, lastDir: 0, transition: null };
 }
 
 /** Phase implied by a vyTarget when no transition is running. */
@@ -89,6 +93,33 @@ function moveVy(state: WorldState, vyTarget: number, config: WorldConfig): World
   const clamped = clamp(vyTarget, 0, config.rooms.length + 1);
   if (clamped === state.vyTarget) return state;
   return { ...state, vyTarget: clamped, phase: phaseForVyTarget(clamped, config) };
+}
+
+/** A gesture move of the virtual scroll, remembering its direction. Same object when clamped. */
+function scrollVy(state: WorldState, dy: number, config: WorldConfig): WorldState {
+  const moved = moveVy(state, state.vyTarget + dy / config.scrollPx, config);
+  return moved === state ? state : { ...moved, lastDir: dy > 0 ? 1 : -1 };
+}
+
+/** below this much past a whole position, a pause goes back to it (a nudge, not a move) */
+const NUDGE = 0.04;
+
+/**
+ * Where a move finishes: the next whole position in its direction; back only for a nudge.
+ * Going back into the hero or out of the sheet takes half the way, so the momentum of a
+ * scroll that reaches the top of the sheet does not close it.
+ */
+function landing(v: number, dir: number, n: number): number {
+  if (dir < 0 && (v < 1 || v > n)) return Math.round(v);
+  if (dir > 0) return Math.ceil(v - NUDGE);
+  if (dir < 0) return Math.floor(v + NUDGE);
+  return Math.round(v);
+}
+
+/** Lands the virtual scroll on `land` and forgets the direction. Same object when already there. */
+function landVy(state: WorldState, land: number, config: WorldConfig): WorldState {
+  const moved = moveVy(state, land, config);
+  return moved.lastDir === 0 ? moved : { ...moved, lastDir: 0 };
 }
 
 /**
@@ -116,14 +147,18 @@ export function scroll(state: WorldState, dy: number, config: WorldConfig, sheet
     }
     case 'sheet':
       if (dy > 0 || !sheetAtTop) return state; // native scroll owns the sheet
-      return moveVy(state, state.vyTarget + dy / config.scrollPx, config);
+      return scrollVy(state, dy, config);
     case 'hero':
     case 'carousel':
-      return moveVy(state, state.vyTarget + dy / config.scrollPx, config);
+      return scrollVy(state, dy, config);
   }
 }
 
-/** The magnet: after a pause, finish toward the nearest unit. Same object when already there. */
+/**
+ * After a pause, finish the move in the direction it was going: hero lifted or down,
+ * the next product in front, sheet open or closed; a stop inside a product. Same object
+ * when nothing moves.
+ */
 export function settle(state: WorldState, config: WorldConfig): WorldState {
   switch (state.phase) {
     case 'room': {
@@ -133,10 +168,22 @@ export function settle(state: WorldState, config: WorldConfig): WorldState {
     }
     case 'hero':
     case 'carousel':
-      return moveVy(state, Math.round(state.vyTarget), config);
+      return landVy(state, landing(state.vyTarget, state.lastDir, config.rooms.length), config);
     default:
       return state;
   }
+}
+
+/**
+ * The finger lifted. A flick worth `px` more gesture pixels carries the carousel on, then the
+ * move lands like after a pause. The flick turns the carousel only: it never lifts the hero
+ * past the first product, never raises the sheet, never drops back into the hero.
+ */
+export function release(state: WorldState, px: number, config: WorldConfig): WorldState {
+  if (state.phase !== 'hero' && state.phase !== 'carousel') return state;
+  const n = config.rooms.length, v = state.vyTarget;
+  const carried = v < 1 || v > n ? v : clamp(v + px / config.scrollPx, 1, n);
+  return landVy(state, landing(carried, px !== 0 ? Math.sign(px) : state.lastDir, n), config);
 }
 
 /**
@@ -167,8 +214,8 @@ export function step(state: WorldState, dir: StepDir, config: WorldConfig, sheet
 
 /**
  * Ease `value` toward `target`: exponential smoothing while the visitor scrubs (a
- * fractional target), with a floor on the speed once the magnet or a key has set a whole
- * target, so the tail of the motion does not linger (a pure lerp spends a second on its
+ * fractional target), with a floor on the speed once a whole target is set (a key, a click,
+ * the end of the hero lift or of the sheet rise), so the tail of the motion does not linger (a pure lerp spends a second on its
  * last percent, which reads as a freeze when the sheet has to take the scroll over).
  */
 function ease(value: number, target: number, lerp: number, frames: number): number {
@@ -201,12 +248,12 @@ export function tick(state: WorldState, dtMs: number, config: WorldConfig): Worl
   return next;
 }
 
-/** Enter room k. Only from the carousel. Freezes the ring on that room. */
+/** Enter room k. Only from the carousel. The ring turns that room to the front while the camera flies in. */
 export function enterRoom(state: WorldState, k: number, config: WorldConfig): WorldState {
   if (state.phase !== 'carousel') return state;
   const n = config.rooms.length;
   if (k < 0 || k >= n) return state;
-  return { ...state, phase: 'entering', vy: 1 + k, vyTarget: 1 + k, roomIdx: k, roomProg: 0, roomProgTarget: 0, overscroll: 0, transition: { to: 'room', t: 0 } };
+  return { ...state, phase: 'entering', vyTarget: 1 + k, roomIdx: k, roomProg: 0, roomProgTarget: 0, overscroll: 0, transition: { to: 'room', t: 0 } };
 }
 
 /** Leave the current room. Only from inside a room. The screens ease back into their stack during the flight. */
