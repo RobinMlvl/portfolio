@@ -8,6 +8,7 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import type { PublicRoom } from '@/content/schema';
+import { ProductLogo } from '@/components/rooms/ProductLogo';
 import { REPO_COLOR, weeklyCounts, type History } from '@/lib/commits';
 import { screenCaption, stackOf, type StackEntry } from '@/lib/world/screens';
 import type { WorldActions, WorldSnapshot } from '@/lib/world/useWorld';
@@ -48,8 +49,8 @@ export function ProductSheet({ rooms, index, wide, film, visible, actions }: { r
       <aside aria-label="Product" inert={!visible} className="absolute bottom-10 left-10 top-[104px] z-10 flex w-[min(30vw,440px)] flex-col transition-[opacity,transform] duration-500" style={shown}>
         {header}
         <div key={room.slug} className="swap my-auto">
-          <h2 className="display text-[clamp(32px,2.8vw,48px)]">{room.name}</h2>
-          <div className="mt-3">{status}</div>
+          <h2 className="flex items-center gap-3"><ProductLogo logo={room.logo} scale={0.8} /></h2>
+          <div className="mt-4">{status}</div>
           <p className="mt-4 text-[15px] leading-[1.55] text-fg-2">{room.oneLiner}</p>
           <dl className="mt-6 grid grid-cols-[64px_1fr] items-baseline gap-x-4 gap-y-2.5 text-[14px]">
             <dt className="kicker text-muted">role</dt><dd>{room.role}</dd>
@@ -68,8 +69,8 @@ export function ProductSheet({ rooms, index, wide, film, visible, actions }: { r
     <aside aria-label="Product" inert={!visible} className="label-card absolute inset-x-4 bottom-4 z-10 flex h-[300px] flex-col px-5 py-4 transition-[opacity,transform] duration-500" style={shown}>
       {header}
       <div key={room.slug} className="swap mt-3 flex min-h-0 flex-1 flex-col [&>*]:shrink-0">
-        <h2 className="text-[22px] font-semibold tracking-[-0.03em]">{room.name}</h2>
-        <div className="mt-1">{status}</div>
+        <h2 className="flex items-center gap-2"><ProductLogo logo={room.logo} scale={0.42} /></h2>
+        <div className="mt-2">{status}</div>
         <p className="mt-2 line-clamp-2 text-[14px] leading-[1.5] text-fg-2">{room.oneLiner}</p>
         <div className="mt-2.5">{stack}</div>
         <div className="mt-auto pt-2">{ways}</div>

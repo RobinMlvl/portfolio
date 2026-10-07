@@ -24,6 +24,8 @@ export const site: Site = {
   },
   // Sources: spec §5.6 (Algoritmi: EN/JA/zh-TW, call staff on SSE + WebRTC, private code),
   // facts-drinxlab.md (2026-09-17) and the ESP32 firmware at ~/Documents/PlatformIO/Projects/Drinxlab (src/main.cpp).
+  // Triips: the 2021 app in iCloud Drive (Documents/triips/developpement-mobile: React Native 0.64, Firebase auth, Firestore,
+  // storage; store screenshots and Play banner in Design/) and its 2023 rebuild (GitHub RobinMlvl/Triips-React-Native, private).
   sideProjects: {
     title: 'Side projects',
     items: [
@@ -44,6 +46,15 @@ export const site: Site = {
         line: 'A cocktail machine: printed housing, eight pumps, an ESP32 in C++ and an app mapping pumps to recipes.',
         tags: ['ESP32', 'C++', 'Station F'],
         picture: { kind: 'image', src: '/screens/side/drinxlab.webp', width: 960, height: 540 },
+      },
+      {
+        name: 'Triips',
+        year: '2021 to 2023',
+        kind: 'mobile app',
+        url: null,
+        line: 'A travel app for iOS and Android: spots on a map, filtered by type, and shared by the community with a photo.',
+        tags: ['React Native', 'Firebase', 'iOS / Android'],
+        picture: { kind: 'image', src: '/screens/side/triips.webp', width: 960, height: 540 },
       },
     ],
   },
