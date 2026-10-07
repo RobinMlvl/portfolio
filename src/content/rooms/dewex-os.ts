@@ -5,6 +5,8 @@ import { periodOf } from '@/lib/commits';
 const history = repoOf('dewex-os');
 
 // Sources: facts-dewex-os.md (extracted 2026-09-17 from the dewex-os repo), spec §5.2 (stops proposed, to confirm with Robin).
+// One film shows the product (Robin's cut, 2026-10-07: the web picture with the full cut's sound; the leads in it are fictional, on .example domains);
+// the other stops keep their text for the plain page.
 export const dewexOs: Room = {
   slug: 'dewex-os',
   index: 2,
@@ -34,7 +36,18 @@ export const dewexOs: Room = {
         { value: '13', label: 'BullMQ queues', source: 'facts-dewex-os.md §4 (lib/queue.mjs)' },
         { value: '9', label: 'LLM agents in the registry', source: 'facts-dewex-os.md §7 (AGENT_REGISTRY)' },
       ],
-      screens: [{ kind: 'placeholder', key: 'workspace', label: 'Prospecting workspace', owner: 'robin' }],
+      screens: [
+        {
+          kind: 'video',
+          key: 'overview',
+          src: '/screens/dewex-os/overview.mp4',
+          poster: '/screens/dewex-os/overview-poster.webp',
+          alt: 'Product film, 58 seconds: the platform finds an outdoor operator with an outdated website, builds it a demo site, sends the outreach and flags the reply; it also writes the blog, tracks search rankings every week, and its agents scrape, analyse, build demos and send on autopilot',
+          caption: 'Dewex OS in 58 seconds: prospecting, SEO and analytics in one OS',
+          width: 1440,
+          height: 810,
+        },
+      ],
     },
     {
       key: 'factory',

@@ -12,16 +12,16 @@ describe('RoomsList', () => {
     expect(within(articles[1]).getByText('OS')).toBeInTheDocument();
     expect(within(articles[3]).getByRole('img', { name: 'riview.me' })).toBeInTheDocument();
   });
-  it('renders the films with a player that never starts by itself, the capture of the Swiss site, and the screen still to come', () => {
+  it('renders the films with a player that never starts by itself and the capture of the Swiss site', () => {
     const { container } = render(<RoomsList rooms={rooms} />);
     const films = Array.from(container.querySelectorAll('video'));
-    expect(films.map((f) => f.getAttribute('src'))).toEqual(['/screens/dewex/overview.mp4', '/screens/riview/overview.mp4']);
+    expect(films.map((f) => f.getAttribute('src'))).toEqual(['/screens/dewex/overview.mp4', '/screens/dewex-os/overview.mp4', '/screens/riview/overview.mp4']);
     for (const film of films) {
       expect(film).toHaveAttribute('controls');
       expect(film).not.toHaveAttribute('autoplay');
     }
     expect(screen.getByRole('img', { name: /Swiss Local Adventures home page/ })).toBeInTheDocument();
-    expect(screen.getAllByText(/screen to come/i)).toHaveLength(1); // Dewex OS, until its film
+    expect(screen.queryAllByText(/screen to come/i)).toEqual([]);
   });
   it('reserves logo space from the real aspect ratio', () => {
     render(<RoomsList rooms={rooms} />);

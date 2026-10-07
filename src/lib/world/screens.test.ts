@@ -25,11 +25,11 @@ describe('stackOf', () => {
 });
 
 describe('filmOf and zoomFrameOf', () => {
-  const filmed = ['dewex', 'riview'];
+  const filmed = ['dewex', 'dewex-os', 'riview'];
   it('finds the film of a product shown by one film, and frames it without the card', () => {
     for (const room of publicRoomsOf(rooms).filter((r) => filmed.includes(r.slug))) {
       expect(filmOf(room)?.key).toBe('overview');
-      expect(zoomFrameOf(room)).toEqual({ screenHeight: PANEL.width / (1600 / 900), film: true });
+      expect(zoomFrameOf(room)).toEqual({ screenHeight: PANEL.width / (16 / 9), film: true });
     }
   });
   it('frames the other products by their tallest screen, with the card', () => {
